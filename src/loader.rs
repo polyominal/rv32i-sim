@@ -38,7 +38,7 @@ pub fn load_elf(
     // Set program entry
     match get_elf_entry(elf_reader) {
         Ok(entry) => {
-            cpu.pc.write(entry as u32);
+            cpu.pc.write(entry);
         }
         Err(e) => {
             return Err(e);
@@ -56,11 +56,11 @@ pub fn load_elf(
         // Load the segment into memory
 
         // Get memory size
-        let memory_size = segment.p_memsz(endian) as u32;
+        let memory_size = segment.p_memsz(endian);
         // Get virtual address
-        let virtual_address = segment.p_vaddr(endian) as u32;
+        let virtual_address = segment.p_vaddr(endian);
         // Get file size
-        let file_size = segment.p_filesz(endian) as u32;
+        let file_size = segment.p_filesz(endian);
 
         // Can't handle with 32b memory
         if virtual_address.checked_add(memory_size).is_none() {
