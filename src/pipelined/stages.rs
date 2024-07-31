@@ -9,7 +9,7 @@ use crate::stages_simple;
 /// IF stage
 pub fn instruction_fetch(
     cpu: &mut CPUState,
-    mem: &mut dyn StorageInterface,
+    mem: &mut impl StorageInterface,
     next_state: &mut PipelineState,
 ) {
     // Increment PC by 4
@@ -76,7 +76,7 @@ pub fn instruction_decode(
 /// EX stage
 pub fn execute(
     cpu: &mut CPUState,
-    mem: &mut dyn StorageInterface,
+    mem: &mut impl StorageInterface,
     current_state: &PipelineState,
     next_state: &mut PipelineState,
 ) {
@@ -115,7 +115,7 @@ pub fn execute(
 /// MEM stage
 pub fn memory_access(
     cpu: &mut CPUState,
-    mem: &mut dyn StorageInterface,
+    mem: &mut impl StorageInterface,
     current_state: &PipelineState,
     next_state: &mut PipelineState,
 ) {

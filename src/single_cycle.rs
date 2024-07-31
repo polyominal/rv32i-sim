@@ -6,7 +6,7 @@ use crate::memory::StorageInterface;
 use crate::stages_simple::*;
 
 /// Returns the exiting PC address
-pub fn run(mut cpu: &mut CPUState, mem: &mut dyn StorageInterface) -> u32 {
+pub fn run(mut cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
     loop {
         // Detect stack overflow
         if cpu.stack_overflow() {

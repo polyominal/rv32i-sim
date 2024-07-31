@@ -13,7 +13,7 @@ pub mod pipeline;
 pub mod stages;
 
 /// Returns the exiting PC address
-pub fn run(mut cpu: &mut CPUState, mem: &mut dyn StorageInterface) -> u32 {
+pub fn run(mut cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
     let mut current_state = PipelineState::default();
     let mut next_state = PipelineState::default();
 

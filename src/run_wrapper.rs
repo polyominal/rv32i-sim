@@ -80,7 +80,7 @@ pub fn fetch_operations(trace_path: &str) -> Vec<(char, u32)> {
 }
 
 /// Run simulation on the given trace file
-pub fn run_trace(cache: &mut dyn StorageInterface, trace_path: &str) -> f64 {
+pub fn run_trace(cache: &mut impl StorageInterface, trace_path: &str) -> f64 {
     let operations = fetch_operations(trace_path);
 
     {

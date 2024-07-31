@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use text_io::scan;
 
 /// Handles a system call
-pub fn syscall(op1: i32, op2: i32, mem: &mut dyn StorageInterface) -> i32 {
+pub fn syscall(op1: i32, op2: i32, mem: &mut impl StorageInterface) -> i32 {
     let call_type = op2;
     let call_arg = op1;
 

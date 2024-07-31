@@ -10,7 +10,7 @@ use crate::system_call::syscall;
 pub fn instruction_fetch(
     pc: u32,
     cpu: &mut CPUState,
-    mem: &mut dyn StorageInterface,
+    mem: &mut impl StorageInterface,
 ) -> u32 {
     let mut stall_count = Some(0);
     let mut stall_count_worst = Some(0);
@@ -36,7 +36,7 @@ pub fn register_read(inst: &Instruction, cpu: &CPUState) -> (i32, i32) {
 /// EX: Compute stuff
 pub fn execute(
     cpu: &mut CPUState,
-    mem: &mut dyn StorageInterface,
+    mem: &mut impl StorageInterface,
     inst: &Instruction,
     op1: i32,
     op2: i32,
@@ -70,7 +70,7 @@ pub fn memory_access(
     pc: u32,
     inst: &Instruction,
     cpu: &mut CPUState,
-    mem: &mut dyn StorageInterface,
+    mem: &mut impl StorageInterface,
     exec_result: i32,
     op2: i32,
 ) -> u32 {
