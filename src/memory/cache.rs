@@ -40,8 +40,7 @@ impl Cache {
         assert!(policy.is_valid());
 
         let offset_bits = get_log_2(policy.block_size as u32);
-        let index_bits =
-            get_log_2((policy.block_num / policy.associativity) as u32);
+        let index_bits = get_log_2((policy.block_num / policy.associativity) as u32);
         let offset_mask = get_mask(offset_bits);
         let index_mask = get_mask(index_bits);
         let tag_mask = get_mask(32 - offset_bits - index_bits);

@@ -1,13 +1,9 @@
 //! Inclusive cache implementation
 
-use super::cache::Block;
-use super::cache::CachePolicy;
-use super::AccessType;
-use super::Cache;
-use super::StorageInterface;
-use super::WriteHitPolicy;
-use super::WriteMissPolicy;
-use super::MMU;
+use super::cache::{Block, CachePolicy};
+use super::{
+    AccessType, Cache, StorageInterface, WriteHitPolicy, WriteMissPolicy, MMU,
+};
 
 /// Inclusive cache implementation.
 /// We maintain n (k >= 0) caches and 1 MMU
@@ -124,8 +120,7 @@ impl InclusiveCache {
                     .victim_cache
                     .get_address(&self.victim_cache.blocks[hit_index]);
                 let index = self.caches[0].get_index(victim_address);
-                let index_to_replace =
-                    self.caches[k].get_index_to_replace(index);
+                let index_to_replace = self.caches[k].get_index_to_replace(index);
                 let replaced_address = self.caches[k]
                     .get_address(&self.caches[k].blocks[index_to_replace]);
                 assert_eq!(index, index_to_replace);
@@ -160,10 +155,8 @@ impl InclusiveCache {
         assert!(self.lookup(k, address).is_none());
 
         // Replace the block
-        let replaced_block = std::mem::replace(
-            &mut self.caches[k].blocks[index_to_replace],
-            block,
-        );
+        let replaced_block =
+            std::mem::replace(&mut self.caches[k].blocks[index_to_replace], block);
 
         // If we enable victim cache and we're at k = 0,
         // we write the replaced block to the victim cache
@@ -174,8 +167,7 @@ impl InclusiveCache {
         // If this block is using write-back policy,
         // and the replaced block is dirty,
         // write it to the next_level
-        if self.write_hit_policy == WriteHitPolicy::WriteBack
-            && replaced_block.dirty
+        if self.write_hit_policy == WriteHitPolicy::WriteBack && replaced_block.dirty
         {
             self.write_to_next_level(k, &replaced_block);
         }
@@ -250,14 +242,13 @@ impl StorageInterface for InclusiveCache {
                 // only if vc misses
                 let vc = &self.victim_cache;
                 eprintln!("vc: {:?}", vc.history);
-                result =
-                    vc.policy.hit_latency as f64 + vc.get_miss_rate() * result;
+                result = vc.policy.hit_latency as f64 + vc.get_miss_rate() * result;
             }
 
             let cache = &self.caches(k);
             eprintln!("k = {}: {:?}", k, cache.history);
-            result = cache.policy.hit_latency as f64
-                + cache.get_miss_rate() * result;
+            result =
+                cache.policy.hit_latency as f64 + cache.get_miss_rate() * result;
         }
         result
     }

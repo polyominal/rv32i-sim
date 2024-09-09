@@ -5,9 +5,8 @@ use sim_lib::run_wrapper::run_trace;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let param_tokens: Vec<String> = std::env::args().collect();
-    let trace_path = param_tokens
-        .get(1)
-        .ok_or("You should specify exactly one trace file")?;
+    let trace_path =
+        param_tokens.get(1).ok_or("You should specify exactly one trace file")?;
     let trace_base_name = String::from(trace_path.split('/').last().unwrap());
     let output_path = format!("eval/multi_eval_{}.csv", trace_base_name);
 
@@ -32,10 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut mem = InclusiveCache::default();
         let amat = run_trace(&mut mem, &trace_path);
         mem.verify_inclusiveness();
-        writer.write_record(&[
-            "Multi-level inclusive",
-            &format!("{:.3}", amat),
-        ])?;
+        writer.write_record(&["Multi-level inclusive", &format!("{:.3}", amat)])?;
     }
 
     // 3-level inclusive cache with victim cache
@@ -55,10 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut mem = ExclusiveCache::default();
         let amat = run_trace(&mut mem, &trace_path);
         mem.verify_exclusiveness();
-        writer.write_record(&[
-            "Multi-level exclusive",
-            &format!("{:.3}", amat),
-        ])?;
+        writer.write_record(&["Multi-level exclusive", &format!("{:.3}", amat)])?;
     }
 
     Ok(())

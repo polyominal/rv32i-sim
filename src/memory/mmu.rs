@@ -24,9 +24,7 @@ pub struct MMU {
 impl MMU {
     /// Make a new MMU
     pub fn make() -> Self {
-        Self {
-            data: vec![None; FIRST_LEVEL_SIZE],
-        }
+        Self { data: vec![None; FIRST_LEVEL_SIZE] }
     }
 
     /// The first-level index of the address

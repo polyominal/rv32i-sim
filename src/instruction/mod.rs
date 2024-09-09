@@ -31,14 +31,8 @@ impl Instruction {
         let attributes = Attributes::default();
         let function = Function::default();
         let controls = Controls::default();
-        let mut inst = Self {
-            raw_inst,
-            opcode,
-            format,
-            function,
-            attributes,
-            controls,
-        };
+        let mut inst =
+            Self { raw_inst, opcode, format, function, attributes, controls };
         decode_helper::parse(&mut inst);
 
         inst

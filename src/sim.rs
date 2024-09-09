@@ -1,15 +1,12 @@
-use sim_lib::{
-    cpu::{CPUPolicy, Implementation},
-    pipelined::branch_predictor::PredictorHeuristic,
-    run_wrapper,
-};
-use std::{env, error::Error};
+use sim_lib::cpu::{CPUPolicy, Implementation};
+use sim_lib::pipelined::branch_predictor::PredictorHeuristic;
+use sim_lib::run_wrapper;
+use std::env;
+use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args().skip(1);
-    let elf_file = args
-        .next()
-        .ok_or("You should specify exactly one ELF file")?;
+    let elf_file = args.next().ok_or("You should specify exactly one ELF file")?;
 
     let mut policy = CPUPolicy::default();
 
@@ -39,9 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     "BP" => PredictorHeuristic::BufferedPrediction,
                     "ANT" => PredictorHeuristic::AlwaysNotTaken,
                     _ => {
-                        return Err(
-                            "Invalid BP heuristic specified after -p".into()
-                        )
+                        return Err("Invalid BP heuristic specified after -p".into())
                     }
                 };
             }

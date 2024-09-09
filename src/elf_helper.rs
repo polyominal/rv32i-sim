@@ -1,6 +1,7 @@
 //! Helper functions for parsing ELF files
 
-use object::{elf, read::elf::FileHeader};
+use object::elf;
+use object::read::elf::FileHeader;
 use std::error::Error;
 use std::fs;
 
@@ -8,9 +9,7 @@ pub type ELFReaderType = elf::FileHeader32<object::Endianness>;
 pub type Segment = elf::ProgramHeader32<object::Endianness>;
 
 /// Returns the program entry address
-pub fn get_elf_entry(
-    elf_reader: &ELFReaderType,
-) -> Result<u32, Box<dyn Error>> {
+pub fn get_elf_entry(elf_reader: &ELFReaderType) -> Result<u32, Box<dyn Error>> {
     let endian = get_elf_endian(elf_reader)?;
     return Ok(elf_reader.e_entry(endian));
 }
@@ -32,9 +31,7 @@ pub fn get_elf_endian(
 }
 
 /// Returns the machine type
-pub fn get_elf_machine(
-    elf_reader: &ELFReaderType,
-) -> Result<u16, Box<dyn Error>> {
+pub fn get_elf_machine(elf_reader: &ELFReaderType) -> Result<u16, Box<dyn Error>> {
     return Ok(elf_reader.e_machine(get_elf_endian(elf_reader)?));
 }
 

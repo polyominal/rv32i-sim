@@ -211,8 +211,7 @@ fn parse_format_r(raw_inst: u32) -> Attributes {
 fn parse_format_i(raw_inst: u32) -> Attributes {
     fn is_i_star(attributes: &Attributes) -> bool {
         attributes.opcode == Some(0x13)
-            && (attributes.funct3 == Some(0b001)
-                || attributes.funct3 == Some(0b101))
+            && (attributes.funct3 == Some(0b001) || attributes.funct3 == Some(0b101))
     }
 
     let mut attributes = Attributes {
