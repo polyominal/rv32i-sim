@@ -74,7 +74,7 @@ pub enum Format {
 }
 
 /// rv32i function (instruction?)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum Function {
     LUI,
     AUIPC,
@@ -94,6 +94,7 @@ pub enum Function {
     SB,
     SH,
     SW,
+    #[default]
     ADDI,
     SLTI,
     SLTIU,
@@ -114,12 +115,6 @@ pub enum Function {
     OR,
     AND,
     ECALL,
-}
-
-impl Default for Function {
-    fn default() -> Self {
-        Function::ADDI
-    }
 }
 
 /// Instruction attributes

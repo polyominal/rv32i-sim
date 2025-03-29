@@ -17,10 +17,7 @@ fn get_imm_sign_extended(inst: &Instruction) -> Option<u32> {
         _ => 20,
     };
 
-    match inst.attributes.imm {
-        Some(v) => Some((((v as i32) << shamt) >> shamt) as u32),
-        None => None,
-    }
+    inst.attributes.imm.map(|v| (((v as i32) << shamt) >> shamt) as u32)
 }
 
 /// Determines an instruction's mnemonic, e.g., JAL, XOR, or SRA
@@ -90,22 +87,10 @@ pub fn get_controls(inst: &Instruction) -> Controls {
     use crate::alu::ALUSrc;
 
     Controls {
-        branch: match inst.opcode {
-            Branch | Jal | Jalr => true,
-            _ => false,
-        },
-        mem_read: match inst.opcode {
-            Opcode::Load => true,
-            _ => false,
-        },
-        mem_write: match inst.opcode {
-            Opcode::Store => true,
-            _ => false,
-        },
-        reg_write: match inst.opcode {
-            Branch | Store => false,
-            _ => true,
-        },
+        branch: matches!(inst.opcode, Branch | Jal | Jalr),
+        mem_read: matches!(inst.opcode, Opcode::Load),
+        mem_write: matches!(inst.opcode, Opcode::Store),
+        reg_write: !matches!(inst.opcode, Branch | Store),
         mem_step: match inst.function {
             LB | LBU | SB => 1,
             LH | LHU | SH => 2,
@@ -153,7 +138,7 @@ pub fn get_controls(inst: &Instruction) -> Controls {
 
 /// Returns the opcode from a raw instruction
 pub fn raw_to_opcode(raw_inst: u32) -> Opcode {
-    let opcode = raw_inst & (0x7f as u32);
+    let opcode = raw_inst & 0x7f_u32;
     match opcode {
         0x37 => Opcode::Lui,
         0x17 => Opcode::AuiPc,
@@ -196,9 +181,9 @@ pub fn parse(inst: &mut Instruction) {
         Format::J => parse_format_j(inst.raw_inst),
         Format::Sys => parse_format_sys(inst.raw_inst),
     };
-    inst.attributes.imm = get_imm_sign_extended(&inst);
-    inst.function = get_function(&inst);
-    inst.controls = get_controls(&inst);
+    inst.attributes.imm = get_imm_sign_extended(inst);
+    inst.function = get_function(inst);
+    inst.controls = get_controls(inst);
 }
 
 /// Parses attributes for an R-type instruction

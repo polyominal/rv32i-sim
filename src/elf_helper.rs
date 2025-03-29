@@ -14,7 +14,7 @@ pub fn get_elf_entry(
     elf_reader: &ELFReaderType,
 ) -> Result<u32, Box<dyn Error>> {
     let endian = get_elf_endian(elf_reader)?;
-    return Ok(elf_reader.e_entry(endian));
+    Ok(elf_reader.e_entry(endian))
 }
 
 /// Returns the pair (ELF reader, binary data)
@@ -23,14 +23,14 @@ pub fn parse_elf_file(
 ) -> Result<(ELFReaderType, Vec<u8>), Box<dyn Error>> {
     let data = fs::read(file_path)?;
     let elf = elf::FileHeader32::<object::Endianness>::parse(&*data)?;
-    return Ok((*elf, data));
+    Ok((*elf, data))
 }
 
 /// Returns the endianness
 pub fn get_elf_endian(
     elf_reader: &ELFReaderType,
 ) -> Result<object::Endianness, Box<dyn Error>> {
-    return Ok(elf_reader.endian()?);
+    Ok(elf_reader.endian()?)
 }
 
 /// Returns the machine type
@@ -46,5 +46,5 @@ pub fn get_elf_segments(
     elf_data: &[u8],
 ) -> Result<Vec<Segment>, Box<dyn Error>> {
     let endian = get_elf_endian(elf_reader)?;
-    return Ok(elf_reader.program_headers(endian, elf_data)?.to_vec());
+    Ok(elf_reader.program_headers(endian, elf_data)?.to_vec())
 }

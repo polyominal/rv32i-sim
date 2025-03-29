@@ -43,19 +43,17 @@ pub fn instruction_decode(
     let inst = stages_simple::instruction_decode(raw_inst);
 
     // WB hazard -> Data in the register
-    let op1: i32;
-    if current_state.wb_hazard_op1(&inst) {
-        op1 = current_state.mem_wb.wb_result as i32;
+    let op1: i32 = if current_state.wb_hazard_op1(&inst) {
+        current_state.mem_wb.wb_result as i32
     } else {
-        op1 = cpu.gpr[inst.attributes.rs1.unwrap_or(0) as usize].read() as i32;
-    }
+        cpu.gpr[inst.attributes.rs1.unwrap_or(0) as usize].read() as i32
+    };
 
-    let op2: i32;
-    if current_state.wb_hazard_op2(&inst) {
-        op2 = current_state.mem_wb.wb_result as i32;
+    let op2: i32 = if current_state.wb_hazard_op2(&inst) {
+        current_state.mem_wb.wb_result as i32
     } else {
-        op2 = cpu.gpr[inst.attributes.rs2.unwrap_or(0) as usize].read() as i32;
-    }
+        cpu.gpr[inst.attributes.rs2.unwrap_or(0) as usize].read() as i32
+    };
 
     let pc = current_state.if_id.pc;
     next_state.id_ex.pc = pc;

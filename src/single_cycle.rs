@@ -6,7 +6,7 @@ use crate::memory::StorageInterface;
 use crate::stages_simple::*;
 
 /// Returns the exiting PC address
-pub fn run(mut cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
+pub fn run(cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
     loop {
         // Detect stack overflow
         if cpu.stack_overflow() {
@@ -28,13 +28,13 @@ pub fn run(mut cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
         let raw_inst = instruction_fetch(pc, cpu, mem);
         // ID
         let inst = instruction_decode(raw_inst);
-        let (rs1, rs2) = register_read(&inst, &cpu);
+        let (rs1, rs2) = register_read(&inst, cpu);
         // EX
         let exec_result = execute(cpu, mem, &inst, rs1, rs2);
         // MEM
         let wb_result = memory_access(pc, &inst, cpu, mem, exec_result, rs2);
         // WB
-        write_back(pc, &inst, &mut cpu, wb_result);
+        write_back(pc, &inst, cpu, wb_result);
 
         // System call: exit
         if inst.opcode == Opcode::System && rs2 == 3 {

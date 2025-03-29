@@ -171,7 +171,7 @@ pub trait StorageInterface {
         stall_count_worst: &mut Option<i32>,
     ) -> u32 {
         if let Some(stall_count_worst) = stall_count_worst {
-            *stall_count_worst = self.miss_penalty() as i32;
+            *stall_count_worst = self.miss_penalty();
         }
         match step {
             1 => self.get8(address, stall_count) as u32,
@@ -190,7 +190,7 @@ pub trait StorageInterface {
         stall_count_worst: &mut Option<i32>,
     ) {
         if let Some(stall_count_worst) = stall_count_worst {
-            *stall_count_worst += self.miss_penalty() as i32;
+            *stall_count_worst += self.miss_penalty();
         }
         match step {
             1 => self.set8(address, value as u8, stall_count),
@@ -250,31 +250,19 @@ pub trait StorageInterface {
 }
 
 /// Reference: <https://inst.eecs.berkeley.edu/~cs61c/su20/pdfs/lectures/lec15.pdf>
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum WriteHitPolicy {
+    #[default]
     WriteBack,
     WriteThrough,
 }
 
-impl Default for WriteHitPolicy {
-    fn default() -> Self {
-        WriteHitPolicy::WriteBack
-        // WriteHitPolicy::WriteThrough
-    }
-}
-
 /// Reference: <https://inst.eecs.berkeley.edu/~cs61c/su20/pdfs/lectures/lec15.pdf>
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum WriteMissPolicy {
+    #[default]
     WriteAllocate,
     WriteNoAllocate,
-}
-
-impl Default for WriteMissPolicy {
-    fn default() -> Self {
-        WriteMissPolicy::WriteAllocate
-        // WriteMissPolicy::WriteNoAllocate
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

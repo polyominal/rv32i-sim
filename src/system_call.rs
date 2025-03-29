@@ -36,7 +36,7 @@ pub fn syscall(op1: i32, op2: i32, mem: &mut impl StorageInterface) -> i32 {
         }
         2 => {
             // Print a signed number
-            print!("{}", call_arg as i32);
+            print!("{}", { call_arg });
             io::stdout().flush().unwrap();
         }
         3 => {

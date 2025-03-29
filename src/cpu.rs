@@ -23,15 +23,14 @@ pub struct CPUState {
 
 impl CPUState {
     pub fn make(policy: CPUPolicy) -> Self {
-        let cpu = Self {
+        Self {
             stack_base: 0,
             stack_size: 0,
             pc: Register::new(0),
             gpr: [Register::new(0); 32],
             policy,
             history: CPUHistory::default(),
-        };
-        cpu
+        }
     }
 
     /// Checks for stack overflow
@@ -74,17 +73,11 @@ impl Register {
 }
 
 /// Implementation enum
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum Implementation {
     SingleCycle,
+    #[default]
     Pipelined,
-}
-
-impl Default for Implementation {
-    fn default() -> Self {
-        // Implementation::SingleCycle
-        Implementation::Pipelined
-    }
 }
 
 /// CPU policy

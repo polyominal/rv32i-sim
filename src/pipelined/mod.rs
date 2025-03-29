@@ -14,7 +14,7 @@ pub mod pipeline;
 pub mod stages;
 
 /// Returns the exiting PC address
-pub fn run(mut cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
+pub fn run(cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
     let mut current_state = PipelineState::default();
     let mut next_state = PipelineState::default();
 
@@ -44,13 +44,13 @@ pub fn run(mut cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
                 eprintln!("[VERBOSE] Inserting NOP due to load hazard");
             }
         } else {
-            stages::instruction_fetch(&mut cpu, mem, &mut next_state);
-            stages::instruction_decode(&cpu, &current_state, &mut next_state);
+            stages::instruction_fetch(cpu, mem, &mut next_state);
+            stages::instruction_decode(cpu, &current_state, &mut next_state);
         }
 
-        stages::execute(&mut cpu, mem, &current_state, &mut next_state);
-        stages::memory_access(&mut cpu, mem, &current_state, &mut next_state);
-        stages::write_back(&mut cpu, &current_state);
+        stages::execute(cpu, mem, &current_state, &mut next_state);
+        stages::memory_access(cpu, mem, &current_state, &mut next_state);
+        stages::write_back(cpu, &current_state);
 
         let exec_inst = next_state.ex_mem.inst;
         if exec_inst.opcode == Opcode::System && next_state.ex_mem.op2 == 3 {

@@ -14,10 +14,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // For a fixed cache size, varie the block size
     // Performance metric: miss rate
     // Cache sizes: 4KB, 16KB, 64KB, 256KB, 1MB
-    let cache_sizes =
-        vec![4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024];
+    let cache_sizes = [4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024];
     // Block sizes: 32B, 64B, 128B, 256B
-    let block_sizes = vec![32, 64, 128, 256];
+    let block_sizes = [32, 64, 128, 256];
 
     // Propagate the data
     let mut data: Vec<Vec<(usize, f64)>> = vec![vec![]; cache_sizes.len()];
@@ -31,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 100,
                 false,
             );
-            let amat = run_trace(&mut mem, &trace_path);
+            let amat = run_trace(&mut mem, trace_path);
             data[i].push((*block_size, amat));
             y_max = y_max.max(amat);
         }
@@ -70,8 +69,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     ctx.configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()
         .unwrap();
 

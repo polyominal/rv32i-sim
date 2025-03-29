@@ -50,9 +50,9 @@ impl MMU {
 
         if let Some(second_level) = &self.data[i] {
             // If the second level exists, check if the page exists
-            return second_level[j].is_some();
+            second_level[j].is_some()
         } else {
-            return false;
+            false
         }
     }
 
@@ -97,7 +97,7 @@ impl MMU {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     /// Get the byte starting at the given address
@@ -132,11 +132,11 @@ mod tests {
         let mut memory = MMU::make();
         let address = 0x12345678;
 
-        assert_eq!(memory.page_exists(address), false);
+        assert!(!memory.page_exists(address));
 
         memory.allocate_page(address);
 
-        assert_eq!(memory.page_exists(address), true);
+        assert!(memory.page_exists(address));
     }
 
     #[test]
@@ -144,8 +144,8 @@ mod tests {
         let mut memory = MMU::make();
         let address = 0x12345678;
 
-        assert_eq!(memory.allocate_page(address), true);
-        assert_eq!(memory.allocate_page(address), false);
+        assert!(memory.allocate_page(address));
+        assert!(!memory.allocate_page(address));
     }
 
     #[test]
@@ -176,9 +176,9 @@ mod tests {
     fn test_by_hand() {
         let mut memory = MMU::make();
 
-        assert_eq!(memory.page_exists(0x1000), false);
-        assert_eq!(memory.allocate_page(0x1000), true);
-        assert_eq!(memory.page_exists(0x2000), false);
+        assert!(!memory.page_exists(0x1000));
+        assert!(memory.allocate_page(0x1000));
+        assert!(!memory.page_exists(0x2000));
 
         {
             // set_byte and get_byte
@@ -190,15 +190,15 @@ mod tests {
             // starting with 0x1000
             for i in 0..s.len() {
                 // Get the current address
-                let current_address = (0x1000 as u32) + (i as u32);
+                let current_address = 0x1000_u32 + (i as u32);
                 let res = memory.set8(current_address, s[i]);
-                assert_eq!(res, true)
+                assert!(res)
             }
 
             // Ensure content
             for i in 0..s.len() {
                 // Get the current address
-                let current_address = (0x1000 as u32) + (i as u32);
+                let current_address = 0x1000_u32 + (i as u32);
                 let res = memory.get8(current_address);
                 assert_eq!(res, s[i]);
             }

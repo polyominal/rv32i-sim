@@ -100,7 +100,7 @@ impl Default for IFIDRegister {
 }
 
 /// ID/EX register
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct IDEXRegister {
     /// Program counter
     pub pc: u32,
@@ -117,20 +117,8 @@ pub struct IDEXRegister {
     pub taken_pc: Option<u32>,
 }
 
-impl Default for IDEXRegister {
-    fn default() -> Self {
-        Self {
-            pc: 0,
-            inst: Instruction::default(),
-            op1: 0,
-            op2: 0,
-            taken_pc: None,
-        }
-    }
-}
-
 /// EX/MEM register
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct EXMEMRegister {
     /// Program counter
     pub pc: u32,
@@ -151,21 +139,8 @@ pub struct EXMEMRegister {
     pub exit_pc: Option<u32>,
 }
 
-impl Default for EXMEMRegister {
-    fn default() -> Self {
-        Self {
-            pc: 0,
-            inst: Instruction::default(),
-            exec_result: 0,
-            op2: 0,
-            taken_pc: None,
-            exit_pc: None,
-        }
-    }
-}
-
 /// MEM/WB register
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct MEMWBRegister {
     /// Program counter
     pub pc: u32,
@@ -173,19 +148,7 @@ pub struct MEMWBRegister {
     /// Wrapped instruction
     pub inst: Instruction,
 
-    /// Memory result
-    // pub mem_result: u32,
-
-    /// Execution result
-    // pub exec_result: i32,
-
     /// Actual write back result,
     /// which is computed during the MEM stage
     pub wb_result: u32,
-}
-
-impl Default for MEMWBRegister {
-    fn default() -> Self {
-        Self { pc: 0, inst: Instruction::default(), wb_result: 0 }
-    }
 }

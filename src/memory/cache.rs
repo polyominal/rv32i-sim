@@ -48,12 +48,12 @@ impl Cache {
 
         // Initialize blocks
         let mut blocks = vec![Block::default(); policy.block_num];
-        for i in 0..blocks.len() {
-            blocks[i].index = i / policy.associativity;
+        for (i, block) in blocks.iter_mut().enumerate() {
+            block.index = i / policy.associativity;
         }
 
         Self {
-            policy: policy,
+            policy,
             history: CacheHistory::default(),
             offset_bits,
             index_bits,
@@ -309,6 +309,6 @@ mod tests {
     #[test]
     fn test_is_valid() {
         let policy = CachePolicy::default();
-        assert_eq!(policy.is_valid(), true);
+        assert!(policy.is_valid());
     }
 }

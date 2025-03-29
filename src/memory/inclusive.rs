@@ -64,7 +64,7 @@ impl InclusiveCache {
     ) -> Self {
         let caches: Vec<_> =
             policies.iter().map(|policy| Cache::make(*policy)).collect();
-        let victim_cache = if caches.len() > 0 {
+        let victim_cache = if !caches.is_empty() {
             let block_size = caches[0].policy.block_size;
             Cache::make(CachePolicy::make(8 * block_size, block_size, 1, 0))
         } else {
@@ -88,7 +88,7 @@ impl InclusiveCache {
 
     /// Write a block to the victim cache
     fn write_block_to_victim_cache(&mut self, block: &Block) {
-        let address = self.caches[0].get_address(&block);
+        let address = self.caches[0].get_address(block);
         let index_to_replace = self.victim_cache.get_index(address);
         self.victim_cache.blocks[index_to_replace] = block.clone();
         // Must fix fields

@@ -3,24 +3,19 @@
 
 const PREDICTOR_BUFFER_SIZE: usize = 4096;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Default)]
 pub enum PredictorHeuristic {
     AlwaysNotTaken,
+    #[default]
     BufferedPrediction,
-}
-
-impl Default for PredictorHeuristic {
-    fn default() -> Self {
-        PredictorHeuristic::BufferedPrediction
-    }
 }
 
 #[derive(Clone, Copy)]
 enum PredictorState {
-    StronglyTaken = 0,
-    WeaklyTaken = 1,
-    WeaklyNotTaken = 2,
-    StronglyNotTaken = 3,
+    Strongly = 0,
+    Weakly = 1,
+    WeaklyNot = 2,
+    StronglyNot = 3,
 }
 
 /// Reference: <https://github.com/hehao98/RISCV-Simulator/blob/master/src/BranchPredictor.cpp>
@@ -33,9 +28,7 @@ impl BranchPredictor {
     pub fn new(heuristic: PredictorHeuristic) -> Self {
         Self {
             heuristic,
-            buffer: Box::new(
-                [PredictorState::WeaklyTaken; PREDICTOR_BUFFER_SIZE],
-            ),
+            buffer: Box::new([PredictorState::Weakly; PREDICTOR_BUFFER_SIZE]),
         }
     }
 
@@ -47,9 +40,8 @@ impl BranchPredictor {
 
         let index = (pc as usize) % PREDICTOR_BUFFER_SIZE;
         match self.buffer[index] {
-            PredictorState::StronglyTaken | PredictorState::WeaklyTaken => true,
-            PredictorState::WeaklyNotTaken
-            | PredictorState::StronglyNotTaken => false,
+            PredictorState::Strongly | PredictorState::Weakly => true,
+            PredictorState::WeaklyNot | PredictorState::StronglyNot => false,
         }
     }
 
@@ -64,24 +56,18 @@ impl BranchPredictor {
         if branch {
             // Branch taken: decrement the state
             *state = match state {
-                PredictorState::StronglyNotTaken => {
-                    PredictorState::WeaklyNotTaken
-                }
-                PredictorState::WeaklyNotTaken => PredictorState::WeaklyTaken,
-                PredictorState::WeaklyTaken => PredictorState::StronglyTaken,
-                PredictorState::StronglyTaken => PredictorState::StronglyTaken,
+                PredictorState::StronglyNot => PredictorState::WeaklyNot,
+                PredictorState::WeaklyNot => PredictorState::Weakly,
+                PredictorState::Weakly => PredictorState::Strongly,
+                PredictorState::Strongly => PredictorState::Strongly,
             };
         } else {
             // Branch not taken: increment the state
             *state = match state {
-                PredictorState::StronglyTaken => PredictorState::WeaklyTaken,
-                PredictorState::WeaklyTaken => PredictorState::WeaklyNotTaken,
-                PredictorState::WeaklyNotTaken => {
-                    PredictorState::StronglyNotTaken
-                }
-                PredictorState::StronglyNotTaken => {
-                    PredictorState::StronglyNotTaken
-                }
+                PredictorState::Strongly => PredictorState::Weakly,
+                PredictorState::Weakly => PredictorState::WeaklyNot,
+                PredictorState::WeaklyNot => PredictorState::StronglyNot,
+                PredictorState::StronglyNot => PredictorState::StronglyNot,
             };
         }
     }

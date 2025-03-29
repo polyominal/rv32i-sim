@@ -100,5 +100,5 @@ pub fn load_elf(
         }
     }
 
-    return Ok(());
+    Ok(())
 }

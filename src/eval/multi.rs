@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_path = format!("eval/multi_eval_{}.csv", trace_base_name);
 
     let mut writer = csv::Writer::from_path(output_path)?;
-    writer.write_record(&["Policy", "AMAT"])?;
+    writer.write_record(["Policy", "AMAT"])?;
 
     // Default single-level cache
     {
@@ -23,28 +23,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             100,
             false,
         );
-        let amat = run_trace(&mut mem, &trace_path);
-        writer.write_record(&["Single-level", &format!("{:.3}", amat)])?;
+        let amat = run_trace(&mut mem, trace_path);
+        writer.write_record(["Single-level", &format!("{:.3}", amat)])?;
     }
 
     // Default 3-level inclusive cache
     {
         let mut mem = InclusiveCache::default();
-        let amat = run_trace(&mut mem, &trace_path);
+        let amat = run_trace(&mut mem, trace_path);
         mem.verify_inclusiveness();
-        writer.write_record(&[
-            "Multi-level inclusive",
-            &format!("{:.3}", amat),
-        ])?;
+        writer
+            .write_record(["Multi-level inclusive", &format!("{:.3}", amat)])?;
     }
 
     // 3-level inclusive cache with victim cache
     {
         let mut mem = InclusiveCache::default();
         mem.use_victim_cache = true;
-        let amat = run_trace(&mut mem, &trace_path);
+        let amat = run_trace(&mut mem, trace_path);
         mem.verify_inclusiveness();
-        writer.write_record(&[
+        writer.write_record([
             "Multi-level inclusive with VC",
             &format!("{:.3}", amat),
         ])?;
@@ -53,12 +51,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 3-level exclusive cache
     {
         let mut mem = ExclusiveCache::default();
-        let amat = run_trace(&mut mem, &trace_path);
+        let amat = run_trace(&mut mem, trace_path);
         mem.verify_exclusiveness();
-        writer.write_record(&[
-            "Multi-level exclusive",
-            &format!("{:.3}", amat),
-        ])?;
+        writer
+            .write_record(["Multi-level exclusive", &format!("{:.3}", amat)])?;
     }
 
     Ok(())

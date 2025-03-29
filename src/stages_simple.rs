@@ -62,7 +62,7 @@ pub fn execute(
             // Print the operands
             eprintln!("[VERBOSE] op1: {:#010x}; op2: {:#010x}", op1, op2);
         }
-        alu(&inst, op1, op2)
+        alu(inst, op1, op2)
     }
 }
 
