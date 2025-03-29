@@ -1,8 +1,10 @@
 //! Inclusive cache implementation
 
-use super::cache::{Cache, CachePolicy};
+use super::cache::Cache;
+use super::cache::CachePolicy;
 use super::mmu::MMU;
-use super::{AccessType, StorageInterface};
+use super::AccessType;
+use super::StorageInterface;
 
 /// Exclusive cache implementation.
 /// We maintain n (k >= 0) caches and 1 MMU
@@ -59,7 +61,8 @@ impl ExclusiveCache {
                 if !self.caches[k].blocks[i].valid {
                     continue;
                 }
-                let address = self.caches[k].get_address(&self.caches[k].blocks[i]);
+                let address =
+                    self.caches[k].get_address(&self.caches[k].blocks[i]);
 
                 for k2 in k + 1..self.n() {
                     assert_eq!(self.lookup(k2, address), None);
@@ -116,8 +119,10 @@ impl StorageInterface for ExclusiveCache {
         assert!(self.lookup(k, address).is_none());
 
         // Replace the block
-        let replaced_block =
-            std::mem::replace(&mut self.caches[k].blocks[index_to_replace], block);
+        let replaced_block = std::mem::replace(
+            &mut self.caches[k].blocks[index_to_replace],
+            block,
+        );
 
         // If there is a next level cache,
         // we clear up the block in the next level,

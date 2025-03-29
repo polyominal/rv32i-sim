@@ -1,7 +1,12 @@
 //! Decoding helper functions.
 //! Many drawn from <https://github.com/djanderson/riscv-5stage-simulator/blob/master/src/instruction/decoder.rs>
 
-use super::{Attributes, Controls, Format, Function, Instruction, Opcode};
+use super::Attributes;
+use super::Controls;
+use super::Format;
+use super::Function;
+use super::Instruction;
+use super::Opcode;
 
 /// Extracts the sign-extended immediate from an instruction
 fn get_imm_sign_extended(inst: &Instruction) -> Option<u32> {
@@ -78,9 +83,11 @@ fn get_function(inst: &Instruction) -> Function {
 }
 
 pub fn get_controls(inst: &Instruction) -> Controls {
-    use crate::alu::{ALUOp, ALUSrc};
     use Function::*;
     use Opcode::*;
+
+    use crate::alu::ALUOp;
+    use crate::alu::ALUSrc;
 
     Controls {
         branch: match inst.opcode {
@@ -211,7 +218,8 @@ fn parse_format_r(raw_inst: u32) -> Attributes {
 fn parse_format_i(raw_inst: u32) -> Attributes {
     fn is_i_star(attributes: &Attributes) -> bool {
         attributes.opcode == Some(0x13)
-            && (attributes.funct3 == Some(0b001) || attributes.funct3 == Some(0b101))
+            && (attributes.funct3 == Some(0b001)
+                || attributes.funct3 == Some(0b101))
     }
 
     let mut attributes = Attributes {
@@ -421,7 +429,7 @@ mod tests {
     fn type_b() {
         // beq x5, x6, 100
         let inst = 0x6628263;
-        //let parsed_insn = Instruction::new(raw_insn);
+        // let parsed_insn = Instruction::new(raw_insn);
         let attributes = parse_format_b(inst);
         assert_eq!(attributes.opcode.unwrap(), 0x63);
         assert_eq!(attributes.funct3.unwrap(), 0x0);

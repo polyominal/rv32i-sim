@@ -1,19 +1,21 @@
-use sim_lib::memory::inclusive::InclusiveCache;
-use sim_lib::run_wrapper::run_trace;
 use std::vec;
 
 use sim_lib::memory::cache::CachePolicy;
+use sim_lib::memory::inclusive::InclusiveCache;
+use sim_lib::run_wrapper::run_trace;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let param_tokens: Vec<String> = std::env::args().collect();
-    let trace_path =
-        param_tokens.get(1).ok_or("You should specify exactly one trace file")?;
+    let trace_path = param_tokens
+        .get(1)
+        .ok_or("You should specify exactly one trace file")?;
 
     // Plot line series for each cache size
     // For a fixed cache size, varie the block size
     // Performance metric: miss rate
     // Cache sizes: 4KB, 16KB, 64KB, 256KB, 1MB
-    let cache_sizes = vec![4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024];
+    let cache_sizes =
+        vec![4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024];
     // Block sizes: 32B, 64B, 128B, 256B
     let block_sizes = vec![32, 64, 128, 256];
 
@@ -38,10 +40,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use plotters::prelude::*;
 
     let trace_base_name = String::from(trace_path.split('/').last().unwrap());
-    let plot_title = format!("Single level evaluation (AMAT): {}", trace_base_name);
+    let plot_title =
+        format!("Single level evaluation (AMAT): {}", trace_base_name);
     let output_path = format!("eval/single_eval_{}.svg", trace_base_name);
 
-    let root = SVGBackend::new(output_path.as_str(), (800, 600)).into_drawing_area();
+    let root =
+        SVGBackend::new(output_path.as_str(), (800, 600)).into_drawing_area();
     root.fill(&WHITE).unwrap();
 
     let mut ctx = ChartBuilder::on(&root)

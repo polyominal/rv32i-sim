@@ -1,9 +1,14 @@
 //! A simulator wrapper
 
-use crate::cpu::{CPUPolicy, CPUState, Implementation};
+use crate::cpu::CPUPolicy;
+use crate::cpu::CPUState;
+use crate::cpu::Implementation;
+use crate::elf_helper;
+use crate::loader;
 use crate::memory::inclusive::InclusiveCache;
 use crate::memory::StorageInterface;
-use crate::{elf_helper, loader, pipelined, single_cycle};
+use crate::pipelined;
+use crate::single_cycle;
 
 const STACK_BASE: u32 = 0x80000000;
 const STACK_SIZE: u32 = 0x400000;
@@ -45,7 +50,8 @@ pub fn run(
 
     let cycle_count_base = cpu.history.cycle_count;
     let cycle_count = cycle_count_base + cpu.history.mem_stall_count;
-    let cycle_count_worst = cycle_count_base + cpu.history.mem_stall_worst_count;
+    let cycle_count_worst =
+        cycle_count_base + cpu.history.mem_stall_worst_count;
     let instruction_count = cpu.history.inst_count;
     let cpi = cycle_count as f64 / instruction_count as f64;
     let cpi_worst = cycle_count_worst as f64 / instruction_count as f64;

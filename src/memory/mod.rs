@@ -5,10 +5,10 @@ pub mod exclusive;
 pub mod inclusive;
 pub mod mmu;
 
-use cache::{Cache, CacheHistory};
-use mmu::MMU;
-
 use cache::Block;
+use cache::Cache;
+use cache::CacheHistory;
+use mmu::MMU;
 
 /// Memory interface implementation
 pub trait StorageInterface {
@@ -76,7 +76,11 @@ pub trait StorageInterface {
             // Access the cache
             if let Some(target_index) = target_index {
                 let ref_counter = *self.ref_counter();
-                self.caches(k).access_index(target_index, access_type, ref_counter);
+                self.caches(k).access_index(
+                    target_index,
+                    access_type,
+                    ref_counter,
+                );
             }
 
             target_index
@@ -84,7 +88,14 @@ pub trait StorageInterface {
     }
 
     /// Hit handler that returns nothing
-    fn handle_hit(&mut self, _: usize, _: u32, _: AccessType, _: &mut Option<i32>) {}
+    fn handle_hit(
+        &mut self,
+        _: usize,
+        _: u32,
+        _: AccessType,
+        _: &mut Option<i32>,
+    ) {
+    }
 
     /// Miss handler that returns the index of the block
     /// with the specified address
@@ -133,11 +144,21 @@ pub trait StorageInterface {
             | ((self.get16(address + 2, &mut None) as u32) << 16)
     }
 
-    fn set16(&mut self, address: u32, value: u16, stall_count: &mut Option<i32>) {
+    fn set16(
+        &mut self,
+        address: u32,
+        value: u16,
+        stall_count: &mut Option<i32>,
+    ) {
         self.set8(address, value as u8, stall_count);
         self.set8(address + 1, (value >> 8) as u8, &mut None)
     }
-    fn set32(&mut self, address: u32, value: u32, stall_count: &mut Option<i32>) {
+    fn set32(
+        &mut self,
+        address: u32,
+        value: u32,
+        stall_count: &mut Option<i32>,
+    ) {
         self.set16(address, value as u16, stall_count);
         self.set16(address + 2, (value >> 16) as u16, &mut None)
     }
@@ -220,8 +241,8 @@ pub trait StorageInterface {
         for k in (0..self.n()).rev() {
             let cache = &self.caches(k);
             eprintln!("k = {}: {:?}", k, cache.history);
-            result =
-                cache.policy.hit_latency as f64 + cache.get_miss_rate() * result;
+            result = cache.policy.hit_latency as f64
+                + cache.get_miss_rate() * result;
         }
         eprintln!();
         result

@@ -1,10 +1,12 @@
 //! Utility functions for preparing the CPU and memory for execution
 
+use std::error::Error;
+
+use object::read::elf::*;
+
 use crate::cpu::CPUState;
 use crate::elf_helper::*;
 use crate::memory::mmu::MMU;
-use object::read::elf::*;
-use std::error::Error;
 
 /// Initializes the stack for the CPU
 pub fn set_stack(

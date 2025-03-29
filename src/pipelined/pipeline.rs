@@ -22,7 +22,8 @@ impl PipelineState {
             Lui | AuiPc | Jal | Jalr | Load => {
                 let if_id_inst = Instruction::new(self.if_id.raw_inst);
                 if_id_inst.attributes.rs1 == self.id_ex.inst.attributes.rd
-                    || if_id_inst.attributes.rs2 == self.id_ex.inst.attributes.rd
+                    || if_id_inst.attributes.rs2
+                        == self.id_ex.inst.attributes.rd
             }
             _ => false,
         }
@@ -118,7 +119,13 @@ pub struct IDEXRegister {
 
 impl Default for IDEXRegister {
     fn default() -> Self {
-        Self { pc: 0, inst: Instruction::default(), op1: 0, op2: 0, taken_pc: None }
+        Self {
+            pc: 0,
+            inst: Instruction::default(),
+            op1: 0,
+            op2: 0,
+            taken_pc: None,
+        }
     }
 }
 

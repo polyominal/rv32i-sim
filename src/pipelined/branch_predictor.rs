@@ -33,7 +33,9 @@ impl BranchPredictor {
     pub fn new(heuristic: PredictorHeuristic) -> Self {
         Self {
             heuristic,
-            buffer: Box::new([PredictorState::WeaklyTaken; PREDICTOR_BUFFER_SIZE]),
+            buffer: Box::new(
+                [PredictorState::WeaklyTaken; PREDICTOR_BUFFER_SIZE],
+            ),
         }
     }
 
@@ -46,9 +48,8 @@ impl BranchPredictor {
         let index = (pc as usize) % PREDICTOR_BUFFER_SIZE;
         match self.buffer[index] {
             PredictorState::StronglyTaken | PredictorState::WeaklyTaken => true,
-            PredictorState::WeaklyNotTaken | PredictorState::StronglyNotTaken => {
-                false
-            }
+            PredictorState::WeaklyNotTaken
+            | PredictorState::StronglyNotTaken => false,
         }
     }
 
@@ -63,7 +64,9 @@ impl BranchPredictor {
         if branch {
             // Branch taken: decrement the state
             *state = match state {
-                PredictorState::StronglyNotTaken => PredictorState::WeaklyNotTaken,
+                PredictorState::StronglyNotTaken => {
+                    PredictorState::WeaklyNotTaken
+                }
                 PredictorState::WeaklyNotTaken => PredictorState::WeaklyTaken,
                 PredictorState::WeaklyTaken => PredictorState::StronglyTaken,
                 PredictorState::StronglyTaken => PredictorState::StronglyTaken,
@@ -73,8 +76,12 @@ impl BranchPredictor {
             *state = match state {
                 PredictorState::StronglyTaken => PredictorState::WeaklyTaken,
                 PredictorState::WeaklyTaken => PredictorState::WeaklyNotTaken,
-                PredictorState::WeaklyNotTaken => PredictorState::StronglyNotTaken,
-                PredictorState::StronglyNotTaken => PredictorState::StronglyNotTaken,
+                PredictorState::WeaklyNotTaken => {
+                    PredictorState::StronglyNotTaken
+                }
+                PredictorState::StronglyNotTaken => {
+                    PredictorState::StronglyNotTaken
+                }
             };
         }
     }

@@ -1,10 +1,13 @@
 //! Pipelined implementation
 
+use core::panic;
+
 use crate::cpu::CPUState;
-use crate::instruction::{Instruction, Opcode, NOP};
+use crate::instruction::Instruction;
+use crate::instruction::Opcode;
+use crate::instruction::NOP;
 use crate::memory::StorageInterface;
 use crate::pipelined::pipeline::PipelineState;
-use core::panic;
 
 pub mod branch_predictor;
 pub mod pipeline;

@@ -1,6 +1,7 @@
 //! Instruction representation
 
-use crate::alu::{ALUOp, ALUSrc};
+use crate::alu::ALUOp;
+use crate::alu::ALUSrc;
 
 pub mod decode_helper;
 

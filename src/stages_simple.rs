@@ -1,6 +1,7 @@
 //! Primitive implementation of 5 stages
 
-use crate::alu::{alu, ALUSrc};
+use crate::alu::alu;
+use crate::alu::ALUSrc;
 use crate::cpu::CPUState;
 use crate::instruction::Instruction;
 use crate::memory::StorageInterface;
@@ -83,8 +84,12 @@ pub fn memory_access(
     let mut stall_count_worst = Some(0);
 
     if inst.controls.mem_read {
-        mem_result =
-            mem.get(address, mem_step, &mut stall_count, &mut stall_count_worst);
+        mem_result = mem.get(
+            address,
+            mem_step,
+            &mut stall_count,
+            &mut stall_count_worst,
+        );
     } else if inst.controls.mem_write {
         mem.set(
             address,
@@ -119,7 +124,12 @@ pub fn memory_access(
 }
 
 /// WB: Write stuff back to the selected register
-pub fn write_back(_: u32, inst: &Instruction, cpu: &mut CPUState, wb_result: u32) {
+pub fn write_back(
+    _: u32,
+    inst: &Instruction,
+    cpu: &mut CPUState,
+    wb_result: u32,
+) {
     // If you need to write
     if inst.controls.reg_write {
         let rd = inst.attributes.rd.unwrap() as usize;

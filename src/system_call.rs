@@ -1,8 +1,11 @@
 //! System call handler
 
-use crate::memory::StorageInterface;
-use std::io::{self, Write};
+use std::io::Write;
+use std::io::{self};
+
 use text_io::scan;
+
+use crate::memory::StorageInterface;
 
 /// Handles a system call
 pub fn syscall(op1: i32, op2: i32, mem: &mut impl StorageInterface) -> i32 {
