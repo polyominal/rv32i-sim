@@ -1,26 +1,60 @@
-//! Memory structure
+//! Memory interface trait
 
 pub mod cache;
 pub mod exclusive;
 pub mod inclusive;
 pub mod mmu;
 
-use cache::Block;
-use cache::Cache;
-use cache::CacheHistory;
-use mmu::MMU;
+use crate::error::MemoryError;
+use crate::error::MemoryErrorKind;
+use crate::error::SimulatorResult;
+use crate::memory::cache::Block;
+use crate::memory::cache::Cache;
+use crate::memory::cache::CacheHistory;
+use crate::memory::mmu::MMU;
 
 /// Memory interface implementation
 pub trait StorageInterface {
-    fn get8(&mut self, address: u32, stall_count: &mut Option<i32>) -> u8 {
+    /// Hit handler that returns nothing
+    fn handle_hit(
+        &mut self,
+        _: usize,
+        _: u32,
+        _: AccessType,
+        _: &mut Option<i32>,
+    ) -> SimulatorResult<()> {
+        Ok(())
+    }
+
+    /// Miss handler that returns the index of the block
+    /// with the specified address
+    fn handle_miss(
+        &mut self,
+        k: usize,
+        address: u32,
+        access_type: AccessType,
+        stall_count: &mut Option<i32>,
+    ) -> SimulatorResult<Option<usize>>;
+
+    fn get8(
+        &mut self,
+        address: u32,
+        stall_count: &mut Option<i32>,
+    ) -> SimulatorResult<u8> {
         self.penalize_worst();
-        self.access(address, AccessType::Read, stall_count);
+        self.access(address, AccessType::Read, stall_count)?;
         self.mmu().get8(address)
     }
-    fn set8(&mut self, address: u32, value: u8, stall_count: &mut Option<i32>) {
+
+    fn set8(
+        &mut self,
+        address: u32,
+        value: u8,
+        stall_count: &mut Option<i32>,
+    ) -> SimulatorResult<()> {
         self.penalize_worst();
-        self.access(address, AccessType::Write, stall_count);
-        self.mmu().set8(address, value);
+        self.access(address, AccessType::Write, stall_count)?;
+        self.mmu().set8(address, value)
     }
 
     fn access(
@@ -28,9 +62,10 @@ pub trait StorageInterface {
         address: u32,
         access_type: AccessType,
         stall_count: &mut Option<i32>,
-    ) {
+    ) -> SimulatorResult<()> {
         *self.ref_counter() += 1;
-        self.access_inner(0, address, access_type, stall_count);
+        self.access_inner(0, address, access_type, stall_count)?;
+        Ok(())
     }
 
     /// Access the cache and return
@@ -41,13 +76,13 @@ pub trait StorageInterface {
         address: u32,
         access_type: AccessType,
         stall_count: &mut Option<i32>,
-    ) -> Option<usize> {
+    ) -> SimulatorResult<Option<usize>> {
         if k == self.n() {
             // Access MMU, which is the worst case
             if let Some(stall_count) = stall_count {
                 *stall_count = self.miss_penalty();
             }
-            None
+            Ok(None)
         } else {
             // Attempt to access the k-th level cache
             let target_index: Option<usize>;
@@ -60,7 +95,7 @@ pub trait StorageInterface {
                     self.caches(k).record_hit();
                 }
 
-                self.handle_hit(k, address, access_type, stall_count);
+                self.handle_hit(k, address, access_type, stall_count)?;
             } else {
                 // A miss at this level
                 if let Some(stall_count) = stall_count {
@@ -70,7 +105,7 @@ pub trait StorageInterface {
                 }
 
                 target_index =
-                    self.handle_miss(k, address, access_type, stall_count);
+                    self.handle_miss(k, address, access_type, stall_count)?;
             }
 
             // Access the cache
@@ -83,39 +118,27 @@ pub trait StorageInterface {
                 );
             }
 
-            target_index
+            Ok(target_index)
         }
     }
 
-    /// Hit handler that returns nothing
-    fn handle_hit(
-        &mut self,
-        _: usize,
-        _: u32,
-        _: AccessType,
-        _: &mut Option<i32>,
-    ) {
-    }
-
-    /// Miss handler that returns the index of the block
-    /// with the specified address
-    fn handle_miss(
-        &mut self,
-        k: usize,
-        address: u32,
-        access_type: AccessType,
-        stall_count: &mut Option<i32>,
-    ) -> Option<usize>;
-
     /// Lookup the cache at level k
     fn lookup(&mut self, k: usize, address: u32) -> Option<usize> {
-        assert!(k < self.n());
+        if k >= self.n() {
+            return None;
+        }
         self.caches(k).lookup(address)
     }
 
     /// Write a block to the next level
-    fn write_to_next_level(&mut self, k: usize, block: &Block) {
-        assert!(k < self.n());
+    fn write_to_next_level(
+        &mut self,
+        k: usize,
+        block: &Block,
+    ) -> SimulatorResult<()> {
+        if k >= self.n() {
+            return Ok(());
+        }
 
         let block_size: usize;
         let address: u32;
@@ -131,17 +154,32 @@ pub trait StorageInterface {
                 address + i as u32,
                 AccessType::Write,
                 &mut None,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
-    fn get16(&mut self, address: u32, stall_count: &mut Option<i32>) -> u16 {
-        self.get8(address, stall_count) as u16
-            | ((self.get8(address + 1, &mut None) as u16) << 8)
+    fn get16(
+        &mut self,
+        address: u32,
+        stall_count: &mut Option<i32>,
+    ) -> SimulatorResult<u16> {
+        let low = self.get8(address, stall_count)? as u16;
+        let high = self.get8(address + 1, &mut None)? as u16;
+
+        Ok(low | (high << 8))
     }
-    fn get32(&mut self, address: u32, stall_count: &mut Option<i32>) -> u32 {
-        self.get16(address, stall_count) as u32
-            | ((self.get16(address + 2, &mut None) as u32) << 16)
+
+    fn get32(
+        &mut self,
+        address: u32,
+        stall_count: &mut Option<i32>,
+    ) -> SimulatorResult<u32> {
+        let low = self.get16(address, stall_count)? as u32;
+        let high = self.get16(address + 2, &mut None)? as u32;
+
+        Ok(low | (high << 16))
     }
 
     fn set16(
@@ -149,18 +187,23 @@ pub trait StorageInterface {
         address: u32,
         value: u16,
         stall_count: &mut Option<i32>,
-    ) {
-        self.set8(address, value as u8, stall_count);
-        self.set8(address + 1, (value >> 8) as u8, &mut None)
+    ) -> SimulatorResult<()> {
+        self.set8(address, value as u8, stall_count)?;
+        self.set8(address + 1, (value >> 8) as u8, &mut None)?;
+
+        Ok(())
     }
+
     fn set32(
         &mut self,
         address: u32,
         value: u32,
         stall_count: &mut Option<i32>,
-    ) {
-        self.set16(address, value as u16, stall_count);
-        self.set16(address + 2, (value >> 16) as u16, &mut None)
+    ) -> SimulatorResult<()> {
+        self.set16(address, value as u16, stall_count)?;
+        self.set16(address + 2, (value >> 16) as u16, &mut None)?;
+
+        Ok(())
     }
 
     fn get(
@@ -169,15 +212,20 @@ pub trait StorageInterface {
         step: u32,
         stall_count: &mut Option<i32>,
         stall_count_worst: &mut Option<i32>,
-    ) -> u32 {
+    ) -> SimulatorResult<u32> {
         if let Some(stall_count_worst) = stall_count_worst {
             *stall_count_worst = self.miss_penalty();
         }
+
         match step {
-            1 => self.get8(address, stall_count) as u32,
-            2 => self.get16(address, stall_count) as u32,
+            1 => Ok(self.get8(address, stall_count)? as u32),
+            2 => Ok(self.get16(address, stall_count)? as u32),
             4 => self.get32(address, stall_count),
-            _ => panic!("Invalid step size"),
+            _ => Err(MemoryError::AccessError {
+                address,
+                kind: MemoryErrorKind::InvalidSize(step),
+            }
+            .into()),
         }
     }
 
@@ -188,15 +236,20 @@ pub trait StorageInterface {
         value: u32,
         stall_count: &mut Option<i32>,
         stall_count_worst: &mut Option<i32>,
-    ) {
+    ) -> SimulatorResult<()> {
         if let Some(stall_count_worst) = stall_count_worst {
             *stall_count_worst += self.miss_penalty();
         }
+
         match step {
             1 => self.set8(address, value as u8, stall_count),
             2 => self.set16(address, value as u16, stall_count),
             4 => self.set32(address, value, stall_count),
-            _ => panic!("Invalid step size"),
+            _ => Err(MemoryError::AccessError {
+                address,
+                kind: MemoryErrorKind::InvalidSize(step),
+            }
+            .into()),
         }
     }
 
@@ -240,11 +293,10 @@ pub trait StorageInterface {
         let mut result = self.miss_penalty() as f64;
         for k in (0..self.n()).rev() {
             let cache = &self.caches(k);
-            eprintln!("k = {}: {:?}", k, cache.history);
-            result = cache.policy.hit_latency as f64
-                + cache.get_miss_rate() * result;
+            let miss_rate = cache.get_miss_rate();
+            result = cache.policy.hit_latency as f64 + miss_rate * result;
         }
-        eprintln!();
+
         result
     }
 }

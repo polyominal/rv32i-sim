@@ -1,8 +1,8 @@
 //! Pipelined implementation
 
-use core::panic;
-
 use crate::cpu::CPUState;
+use crate::error::ExecutionError;
+use crate::error::SimulatorResult;
 use crate::instruction::Instruction;
 use crate::instruction::Opcode;
 use crate::instruction::NOP;
@@ -14,7 +14,10 @@ pub mod pipeline;
 pub mod stages;
 
 /// Returns the exiting PC address
-pub fn run(cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
+pub fn run(
+    cpu: &mut CPUState,
+    mem: &mut impl StorageInterface,
+) -> SimulatorResult<u32> {
     let mut current_state = PipelineState::default();
     let mut next_state = PipelineState::default();
 
@@ -25,7 +28,12 @@ pub fn run(cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
     loop {
         // Check for stack overflow
         if cpu.stack_overflow() {
-            panic!("Stack overflow");
+            return Err(ExecutionError::StackOverflow(
+                cpu.gpr[2].read(),
+                cpu.stack_base,
+                cpu.stack_size,
+            )
+            .into());
         }
 
         // Print the initial PC of this cycle
@@ -36,7 +44,7 @@ pub fn run(cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
         // Increment CPU cycle count
         cpu.update_cycle_count(1);
 
-        if current_state.load_hazard() {
+        if current_state.load_hazard()? {
             // Must insert a NOP
             next_state.id_ex.inst = Instruction::default();
             cpu.update_inst_count(-1);
@@ -44,17 +52,17 @@ pub fn run(cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
                 eprintln!("[VERBOSE] Inserting NOP due to load hazard");
             }
         } else {
-            stages::instruction_fetch(cpu, mem, &mut next_state);
+            stages::instruction_fetch(cpu, mem, &mut next_state)?;
             stages::instruction_decode(cpu, &current_state, &mut next_state);
         }
 
-        stages::execute(cpu, mem, &current_state, &mut next_state);
-        stages::memory_access(cpu, mem, &current_state, &mut next_state);
-        stages::write_back(cpu, &current_state);
+        stages::execute(cpu, mem, &current_state, &mut next_state)?;
+        stages::memory_access(cpu, mem, &current_state, &mut next_state)?;
+        stages::write_back(cpu, &current_state)?;
 
         let exec_inst = next_state.ex_mem.inst;
         if exec_inst.opcode == Opcode::System && next_state.ex_mem.op2 == 3 {
-            return next_state.ex_mem.pc;
+            return Ok(next_state.ex_mem.pc);
         }
 
         let exec_result = next_state.ex_mem.exec_result;
@@ -69,7 +77,10 @@ pub fn run(cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
                 branch_taken = true;
                 actual_new_pc = match exec_inst.opcode {
                     Opcode::Jalr => (exec_result as u32) & !1u32,
-                    Opcode::Branch => next_state.ex_mem.taken_pc.unwrap(),
+                    Opcode::Branch => next_state
+                        .ex_mem
+                        .taken_pc
+                        .unwrap_or_else(|| ((exec_pc as i32) + imm) as u32),
                     _ => ((exec_pc as i32) + imm) as u32,
                 };
             } else {
@@ -113,13 +124,15 @@ pub fn run(cpu: &mut CPUState, mem: &mut impl StorageInterface) -> u32 {
                 true => {
                     // Predicted taken; let's do this
                     // Jump to taken_pc
-                    cpu.pc.write(next_state.id_ex.taken_pc.unwrap());
-                    // Flush
-                    next_state.if_id.raw_inst = NOP;
-                    // We're dumping 1 instruction
-                    cpu.update_inst_count(-1);
-                    // Set the taken flag
-                    predicted_branch_taken = true;
+                    if let Some(taken_pc) = next_state.id_ex.taken_pc {
+                        cpu.pc.write(taken_pc);
+                        // Flush
+                        next_state.if_id.raw_inst = NOP;
+                        // We're dumping 1 instruction
+                        cpu.update_inst_count(-1);
+                        // Set the taken flag
+                        predicted_branch_taken = true;
+                    }
                 }
                 false => {
                     // Do nothing

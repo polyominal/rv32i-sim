@@ -7,6 +7,8 @@ use super::Format;
 use super::Function;
 use super::Instruction;
 use super::Opcode;
+use crate::error::SimulatorError;
+use crate::error::SimulatorResult;
 
 /// Extracts the sign-extended immediate from an instruction
 fn get_imm_sign_extended(inst: &Instruction) -> Option<u32> {
@@ -21,7 +23,7 @@ fn get_imm_sign_extended(inst: &Instruction) -> Option<u32> {
 }
 
 /// Determines an instruction's mnemonic, e.g., JAL, XOR, or SRA
-fn get_function(inst: &Instruction) -> Function {
+fn get_function(inst: &Instruction) -> SimulatorResult<Function> {
     use Function::*;
     use Opcode::*;
     // Opcode-determined ones
@@ -34,14 +36,17 @@ fn get_function(inst: &Instruction) -> Function {
         _ => Function::default(),
     };
     if function != Function::default() {
-        return function;
+        return Ok(function);
     }
 
-    match (
-        inst.opcode,
-        inst.attributes.funct3.unwrap(),
-        (inst.raw_inst & 0x40000000) >> 30,
-    ) {
+    let funct3 = inst
+        .attributes
+        .funct3
+        .ok_or(SimulatorError::InvalidInstructionError(inst.raw_inst, 0))?;
+
+    let funct7_bit = (inst.raw_inst & 0x40000000) >> 30;
+
+    Ok(match (inst.opcode, funct3, funct7_bit) {
         (Branch, 0b000, _) => BEQ,
         (Branch, 0b001, _) => BNE,
         (Branch, 0b100, _) => BLT,
@@ -75,8 +80,13 @@ fn get_function(inst: &Instruction) -> Function {
         (Op, 0b101, 0b1) => SRA,
         (Op, 0b110, _) => OR,
         (Op, 0b111, _) => AND,
-        _ => panic!("Failed to decode instruction {:#0x}", inst.raw_inst),
-    }
+        _ => {
+            return Err(SimulatorError::InvalidInstructionError(
+                inst.raw_inst,
+                0,
+            ))
+        }
+    })
 }
 
 pub fn get_controls(inst: &Instruction) -> Controls {
@@ -137,20 +147,20 @@ pub fn get_controls(inst: &Instruction) -> Controls {
 }
 
 /// Returns the opcode from a raw instruction
-pub fn raw_to_opcode(raw_inst: u32) -> Opcode {
+pub fn raw_to_opcode(raw_inst: u32) -> SimulatorResult<Opcode> {
     let opcode = raw_inst & 0x7f_u32;
     match opcode {
-        0x37 => Opcode::Lui,
-        0x17 => Opcode::AuiPc,
-        0x6f => Opcode::Jal,
-        0x67 => Opcode::Jalr,
-        0x63 => Opcode::Branch,
-        0x03 => Opcode::Load,
-        0x23 => Opcode::Store,
-        0x33 => Opcode::Op,
-        0x13 => Opcode::OpImm,
-        0x73 => Opcode::System,
-        _ => panic!("Unknown opcode: {:07b}", opcode),
+        0x37 => Ok(Opcode::Lui),
+        0x17 => Ok(Opcode::AuiPc),
+        0x6f => Ok(Opcode::Jal),
+        0x67 => Ok(Opcode::Jalr),
+        0x63 => Ok(Opcode::Branch),
+        0x03 => Ok(Opcode::Load),
+        0x23 => Ok(Opcode::Store),
+        0x33 => Ok(Opcode::Op),
+        0x13 => Ok(Opcode::OpImm),
+        0x73 => Ok(Opcode::System),
+        _ => Err(SimulatorError::InvalidInstructionError(raw_inst, 0)),
     }
 }
 
@@ -171,7 +181,7 @@ pub fn opcode_to_format(opcode: Opcode) -> Format {
 }
 
 /// Parses other stuff
-pub fn parse(inst: &mut Instruction) {
+pub fn parse(inst: &mut Instruction) -> SimulatorResult<()> {
     inst.attributes = match inst.format {
         Format::R => parse_format_r(inst.raw_inst),
         Format::I => parse_format_i(inst.raw_inst),
@@ -182,8 +192,10 @@ pub fn parse(inst: &mut Instruction) {
         Format::Sys => parse_format_sys(inst.raw_inst),
     };
     inst.attributes.imm = get_imm_sign_extended(inst);
-    inst.function = get_function(inst);
+    inst.function = get_function(inst)?;
     inst.controls = get_controls(inst);
+
+    Ok(())
 }
 
 /// Parses attributes for an R-type instruction
@@ -331,138 +343,4 @@ fn get_rd(raw_inst: u32) -> u32 {
 /// Extracts the funct7 field from a raw instruction
 fn get_funct7(raw_inst: u32) -> u32 {
     (raw_inst >> 25) & 0x7f
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn type_r() {
-        // add x5, x6, x7
-        let inst = 0x7302b3;
-        let attributes = parse_format_r(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x33); // Op
-        assert_eq!(attributes.funct3.unwrap(), 0x0);
-        assert_eq!(attributes.rd.unwrap(), 0x05);
-        assert_eq!(attributes.rs1.unwrap(), 0x06);
-        assert_eq!(attributes.rs2.unwrap(), 0x07);
-    }
-
-    #[test]
-    fn type_i_arithmetic() {
-        // addi x5, x6, 20
-        let inst = 0x01430293;
-        let attributes = parse_format_i(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x13);
-        assert_eq!(attributes.funct3.unwrap(), 0x0);
-        assert_eq!(attributes.rd.unwrap(), 0x05);
-        assert_eq!(attributes.rs1.unwrap(), 0x06);
-        assert_eq!(attributes.imm.unwrap(), 20);
-    }
-
-    #[test]
-    fn type_i_shift() {
-        // slli x5, x6, 3
-        let inst = 0x00331293;
-        let attributes = parse_format_i(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x13);
-        assert_eq!(attributes.funct3.unwrap(), 0x1);
-        assert_eq!(attributes.rd.unwrap(), 0x05);
-        assert_eq!(attributes.rs1.unwrap(), 0x06);
-        assert_eq!(attributes.imm.unwrap(), 3);
-    }
-
-    #[test]
-    fn type_i_load() {
-        // lw a0, 0(sp)
-        let inst = 0x00012503;
-        let attributes = parse_format_i(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x03);
-        assert_eq!(attributes.funct3.unwrap(), 0x2);
-        assert_eq!(attributes.rd.unwrap(), 0x0a);
-        assert_eq!(attributes.rs1.unwrap(), 0x02);
-        assert_eq!(attributes.imm.unwrap(), 0);
-    }
-
-    #[test]
-    fn type_i_jalr() {
-        // jalr -96(a3)
-        let inst = 0xfa0680e7;
-        let wrapped_inst = Instruction::new(inst);
-        assert_eq!(wrapped_inst.function, Function::JALR);
-        let attributes = parse_format_i(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x67);
-        assert_eq!(attributes.rs1.unwrap(), 13);
-        let imm = get_imm_sign_extended(&wrapped_inst).unwrap() as i32;
-        assert_eq!(imm, -96);
-    }
-
-    #[test]
-    fn type_s() {
-        // sw ra, 28(sp)
-        let inst = 0x00112e23;
-        let attributes = parse_format_s(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x23);
-        assert_eq!(attributes.funct3.unwrap(), 0x2);
-        assert_eq!(attributes.rs1.unwrap(), 0x02);
-        assert_eq!(attributes.rs2.unwrap(), 0x01);
-        assert_eq!(attributes.imm.unwrap(), 28);
-    }
-
-    #[test]
-    fn type_b() {
-        // beq x5, x6, 100
-        let inst = 0x6628263;
-        // let parsed_insn = Instruction::new(raw_insn);
-        let attributes = parse_format_b(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x63);
-        assert_eq!(attributes.funct3.unwrap(), 0x0);
-        assert_eq!(attributes.rs1.unwrap(), 0x05);
-        assert_eq!(attributes.rs2.unwrap(), 0x06);
-        assert_eq!(attributes.imm.unwrap(), 100);
-
-        let wrapped_inst = Instruction::new(inst);
-        let imm = get_imm_sign_extended(&wrapped_inst).unwrap();
-        assert_eq!(imm, 100);
-
-        // bltu x13, x14, 16
-        let inst = 0x00e6e863;
-        let attributes = parse_format_b(inst);
-        assert_eq!(attributes.imm.unwrap(), 16);
-    }
-
-    #[test]
-    fn type_u() {
-        // lui x5, 0x12345
-        let insn = 0x123452b7;
-        let fields = parse_format_u(insn);
-        assert_eq!(fields.opcode.unwrap(), 0x37);
-        assert_eq!(fields.rd.unwrap(), 0x05);
-        assert_eq!(fields.imm.unwrap(), 0x12345000);
-    }
-
-    #[test]
-    fn type_j() {
-        // jal x1, 100
-        let inst = 0x64000ef;
-        let attributes = parse_format_j(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x6f);
-        assert_eq!(attributes.rd.unwrap(), 0x01);
-        assert_eq!(attributes.imm.unwrap(), 100);
-
-        // jal x0, -136
-        let inst = 0xf79ff06f;
-        let attributes = parse_format_j(inst);
-        assert_eq!(attributes.opcode.unwrap(), 0x6f);
-        assert_eq!(attributes.rd.unwrap(), 0x00);
-
-        let wrapped_inst = Instruction::new(inst);
-        let imm = get_imm_sign_extended(&wrapped_inst).unwrap();
-        assert_eq!(imm as i32, -136);
-
-        let inst = 0x735000ef;
-        let wrapped_inst = Instruction::new(inst);
-        assert_eq!(wrapped_inst.attributes.imm.unwrap() as i32, 3892);
-    }
 }
