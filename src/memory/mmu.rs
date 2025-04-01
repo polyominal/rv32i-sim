@@ -206,6 +206,7 @@ impl MMU {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::SimulatorResult;
 
     #[test]
     fn test_page_exists() {
@@ -229,63 +230,64 @@ mod tests {
     }
 
     #[test]
-    fn test_set8() {
+    fn test_set8() -> SimulatorResult<()> {
         let mut memory = MMU::make();
         let address = 0x12345678;
         let byte = 0xAB;
 
         memory.allocate_page(address);
-        memory.set8(address, byte);
+        memory.set8(address, byte)?;
 
-        let res = memory.get8(address);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), byte);
+        let res = memory.get8(address)?;
+        assert_eq!(res, byte);
+
+        Ok(())
     }
 
     #[test]
-    fn test_get8() {
+    fn test_get8() -> SimulatorResult<()> {
         let mut memory = MMU::make();
         let address = 0x12345678;
         let byte = 0xAB;
 
         memory.allocate_page(address);
-        memory.set8(address, byte);
+        memory.set8(address, byte)?;
 
-        let res = memory.get8(address);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), byte);
+        let res = memory.get8(address)?;
+        assert_eq!(res, byte);
+
+        Ok(())
     }
 
     #[test]
-    fn test_by_hand() {
+    fn test_by_hand() -> SimulatorResult<()> {
         let mut memory = MMU::make();
 
         assert!(!memory.page_exists(0x1000));
         assert!(memory.allocate_page(0x1000));
         assert!(!memory.page_exists(0x2000));
 
-        {
-            // set_byte and get_byte
+        // set_byte and get_byte
 
-            // Make a string "Birds aren't real"
-            let s: &[u8] = b"Birds aren't real";
+        // Make a string "Birds aren't real"
+        let s: &[u8] = b"Birds aren't real";
 
-            // Insert all bytes into memory,
-            // starting with 0x1000
-            for i in 0..s.len() {
-                // Get the current address
-                let current_address = 0x1000_u32 + (i as u32);
-                let res = memory.set8(current_address, s[i]);
-                assert!(res.is_ok());
-            }
-
-            // Ensure content
-            for i in 0..s.len() {
-                // Get the current address
-                let current_address = 0x1000_u32 + (i as u32);
-                let res = memory.get8(current_address);
-                assert!(res.is_ok());
-            }
+        // Insert all bytes into memory,
+        // starting with 0x1000
+        for (i, &byte) in s.iter().enumerate() {
+            // Get the current address
+            let current_address = 0x1000_u32 + (i as u32);
+            memory.set8(current_address, byte)?;
         }
+
+        // Check the content
+        for (i, &byte) in s.iter().enumerate() {
+            // Get the current address
+            let current_address = 0x1000_u32 + (i as u32);
+            let res = memory.get8(current_address)?;
+            assert_eq!(res, byte);
+        }
+
+        Ok(())
     }
 }
