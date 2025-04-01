@@ -11,3 +11,5 @@ pub mod stages_simple;
 
 pub mod pipelined;
 pub mod single_cycle;
+
+pub mod error;

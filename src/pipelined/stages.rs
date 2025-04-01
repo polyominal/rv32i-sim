@@ -2,6 +2,7 @@
 
 use super::pipeline::PipelineState;
 use crate::cpu::CPUState;
+use crate::error::SimulatorResult;
 use crate::instruction::Opcode;
 use crate::memory::StorageInterface;
 use crate::stages_simple;
@@ -11,14 +12,14 @@ pub fn instruction_fetch(
     cpu: &mut CPUState,
     mem: &mut impl StorageInterface,
     next_state: &mut PipelineState,
-) {
+) -> SimulatorResult<()> {
     // Increment PC by 4
     let pc = cpu.pc.read();
     let new_pc = pc + 4;
     cpu.pc.write(new_pc);
 
     // Fetch the raw instruction
-    let raw_inst = stages_simple::instruction_fetch(pc, cpu, mem);
+    let raw_inst = stages_simple::instruction_fetch(pc, cpu, mem)?;
 
     if cpu.policy.verbose {
         // Print the PC and the raw instruction
@@ -28,6 +29,8 @@ pub fn instruction_fetch(
     // Update IF/ID register
     next_state.if_id.pc = pc;
     next_state.if_id.raw_inst = raw_inst;
+
+    Ok(())
 }
 
 /// ID stage
@@ -40,7 +43,8 @@ pub fn instruction_decode(
     let raw_inst = current_state.if_id.raw_inst;
 
     // Decode the instruction
-    let inst = stages_simple::instruction_decode(raw_inst);
+    let inst = stages_simple::instruction_decode(raw_inst)
+        .unwrap_or_else(|_| crate::instruction::Instruction::default());
 
     // WB hazard -> Data in the register
     let op1: i32 = if current_state.wb_hazard_op1(&inst) {
@@ -77,7 +81,7 @@ pub fn execute(
     mem: &mut impl StorageInterface,
     current_state: &PipelineState,
     next_state: &mut PipelineState,
-) {
+) -> SimulatorResult<()> {
     let pc = current_state.id_ex.pc;
     let inst = current_state.id_ex.inst;
 
@@ -101,13 +105,15 @@ pub fn execute(
         op2 = current_state.id_ex.op2;
     }
 
-    let exec_result = stages_simple::execute(cpu, mem, &inst, op1, op2);
+    let exec_result = stages_simple::execute(cpu, mem, &inst, op1, op2)?;
 
     next_state.ex_mem.pc = pc;
     next_state.ex_mem.inst = inst;
     next_state.ex_mem.exec_result = exec_result;
     next_state.ex_mem.op2 = op2;
     next_state.ex_mem.taken_pc = current_state.id_ex.taken_pc;
+
+    Ok(())
 }
 
 /// MEM stage
@@ -116,7 +122,7 @@ pub fn memory_access(
     mem: &mut impl StorageInterface,
     current_state: &PipelineState,
     next_state: &mut PipelineState,
-) {
+) -> SimulatorResult<()> {
     let pc = current_state.ex_mem.pc;
     let inst = current_state.ex_mem.inst;
     let exec_result = current_state.ex_mem.exec_result;
@@ -125,14 +131,21 @@ pub fn memory_access(
     next_state.mem_wb.pc = pc;
     next_state.mem_wb.inst = inst;
     next_state.mem_wb.wb_result =
-        stages_simple::memory_access(pc, &inst, cpu, mem, exec_result, op2);
+        stages_simple::memory_access(pc, &inst, cpu, mem, exec_result, op2)?;
+
+    Ok(())
 }
 
 /// WB stage
-pub fn write_back(cpu: &mut CPUState, current_state: &PipelineState) {
+pub fn write_back(
+    cpu: &mut CPUState,
+    current_state: &PipelineState,
+) -> SimulatorResult<()> {
     let pc = current_state.mem_wb.pc;
     let inst = current_state.mem_wb.inst;
     let wb_result = current_state.mem_wb.wb_result;
 
-    stages_simple::write_back(pc, &inst, cpu, wb_result);
+    stages_simple::write_back(pc, &inst, cpu, wb_result)?;
+
+    Ok(())
 }

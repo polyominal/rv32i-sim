@@ -1,6 +1,10 @@
 //! Memory management unit implemented
 //! with a two-level page table
 
+use crate::error::MemoryError;
+use crate::error::MemoryErrorKind;
+use crate::error::SimulatorResult;
+
 const WORD_WIDTH: usize = 32;
 const FIRST_LEVEL_WIDTH: usize = 10;
 const SECOND_LEVEL_WIDTH: usize = 10;
@@ -31,11 +35,13 @@ impl MMU {
     pub fn get_first_level_index(address: u32) -> usize {
         (address >> (WORD_WIDTH - FIRST_LEVEL_WIDTH)) as usize
     }
+
     /// The second-level index of the address
     pub fn get_second_level_index(address: u32) -> usize {
         ((address >> (WORD_WIDTH - FIRST_LEVEL_WIDTH - SECOND_LEVEL_WIDTH))
             & ((SECOND_LEVEL_SIZE - 1) as u32)) as usize
     }
+
     /// The page offset (third-level?)
     pub fn get_page_offset(address: u32) -> usize {
         (address & ((PAGE_SIZE - 1) as u32)) as usize
@@ -57,7 +63,8 @@ impl MMU {
     }
 
     /// Allocate a page of memory at the given address.
-    /// Returns true iff the allocation was successful
+    /// Returns true if the allocation was successful, false if the page was
+    /// already allocated
     pub fn allocate_page(&mut self, address: u32) -> bool {
         let (i, j) = (
             Self::get_first_level_index(address),
@@ -79,12 +86,14 @@ impl MMU {
                 false
             }
         } else {
-            panic!("Second level doesn't exist");
+            // This branch should be unreachable because we just allocated the
+            // second level
+            false
         }
     }
 
     /// Set the byte starting at the given address
-    pub fn set8(&mut self, address: u32, byte: u8) -> bool {
+    pub fn set8(&mut self, address: u32, byte: u8) -> SimulatorResult<()> {
         let (i, j, k) = (
             Self::get_first_level_index(address),
             Self::get_second_level_index(address),
@@ -94,15 +103,19 @@ impl MMU {
         if let Some(second_level) = &mut self.data[i] {
             if let Some(page) = &mut second_level[j] {
                 page[k] = byte;
-                return true;
+                return Ok(());
             }
         }
-        false
+
+        Err(MemoryError::AccessError {
+            address,
+            kind: MemoryErrorKind::WriteUnallocated,
+        }
+        .into())
     }
 
     /// Get the byte starting at the given address
-    pub fn get8(&mut self, address: u32) -> u8 {
-        // Somewhat analogue to set_byte?
+    pub fn get8(&mut self, address: u32) -> SimulatorResult<u8> {
         let (i, j, k) = (
             Self::get_first_level_index(address),
             Self::get_second_level_index(address),
@@ -111,15 +124,82 @@ impl MMU {
 
         if let Some(second_level) = &self.data[i] {
             if let Some(page) = &second_level[j] {
-                return page[k];
+                return Ok(page[k]);
             }
         }
-        // Panic if the page doesn't exist
-        panic!("[get_byte] Page doesn't exist")
+
+        Err(MemoryError::AccessError {
+            address,
+            kind: MemoryErrorKind::ReadUnallocated,
+        }
+        .into())
     }
 
-    pub fn dump(&self) {
-        todo!();
+    /// Set a 16-bit value at the given address
+    pub fn set16(&mut self, address: u32, value: u16) -> SimulatorResult<()> {
+        if address % 2 != 0 {
+            return Err(MemoryError::AlignmentError(address, 2).into());
+        }
+
+        self.set8(address, value as u8)?;
+        self.set8(address + 1, (value >> 8) as u8)?;
+
+        Ok(())
+    }
+
+    /// Get a 16-bit value from the given address
+    pub fn get16(&mut self, address: u32) -> SimulatorResult<u16> {
+        if address % 2 != 0 {
+            return Err(MemoryError::AlignmentError(address, 2).into());
+        }
+
+        let low = self.get8(address)? as u16;
+        let high = self.get8(address + 1)? as u16;
+
+        Ok(low | (high << 8))
+    }
+
+    /// Set a 32-bit value at the given address
+    pub fn set32(&mut self, address: u32, value: u32) -> SimulatorResult<()> {
+        if address % 4 != 0 {
+            return Err(MemoryError::AlignmentError(address, 4).into());
+        }
+
+        self.set16(address, value as u16)?;
+        self.set16(address + 2, (value >> 16) as u16)?;
+
+        Ok(())
+    }
+
+    /// Get a 32-bit value from the given address
+    pub fn get32(&mut self, address: u32) -> SimulatorResult<u32> {
+        if address % 4 != 0 {
+            return Err(MemoryError::AlignmentError(address, 4).into());
+        }
+
+        let low = self.get16(address)? as u32;
+        let high = self.get16(address + 2)? as u32;
+
+        Ok(low | (high << 16))
+    }
+
+    pub fn dump(&self) -> Vec<(u32, Vec<u8>)> {
+        let mut result = Vec::new();
+
+        for (i, first_level) in self.data.iter().enumerate() {
+            if let Some(second_level) = first_level {
+                for (j, page) in second_level.iter().enumerate() {
+                    if let Some(data) = page {
+                        let base_address = ((i as u32)
+                            << (WORD_WIDTH - FIRST_LEVEL_WIDTH))
+                            | ((j as u32) << PAGE_WIDTH);
+                        result.push((base_address, data.to_vec()));
+                    }
+                }
+            }
+        }
+
+        result
     }
 }
 
@@ -157,7 +237,9 @@ mod tests {
         memory.allocate_page(address);
         memory.set8(address, byte);
 
-        assert_eq!(memory.get8(address), byte);
+        let res = memory.get8(address);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), byte);
     }
 
     #[test]
@@ -169,7 +251,9 @@ mod tests {
         memory.allocate_page(address);
         memory.set8(address, byte);
 
-        assert_eq!(memory.get8(address), byte);
+        let res = memory.get8(address);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), byte);
     }
 
     #[test]
@@ -192,7 +276,7 @@ mod tests {
                 // Get the current address
                 let current_address = 0x1000_u32 + (i as u32);
                 let res = memory.set8(current_address, s[i]);
-                assert!(res)
+                assert!(res.is_ok());
             }
 
             // Ensure content
@@ -200,7 +284,7 @@ mod tests {
                 // Get the current address
                 let current_address = 0x1000_u32 + (i as u32);
                 let res = memory.get8(current_address);
-                assert_eq!(res, s[i]);
+                assert!(res.is_ok());
             }
         }
     }

@@ -2,6 +2,7 @@
 
 use crate::alu::ALUOp;
 use crate::alu::ALUSrc;
+use crate::error::SimulatorResult;
 
 pub mod decode_helper;
 
@@ -26,23 +27,24 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    pub fn new(raw_inst: u32) -> Self {
-        let opcode = decode_helper::raw_to_opcode(raw_inst);
+    pub fn new(raw_inst: u32) -> SimulatorResult<Self> {
+        let opcode = decode_helper::raw_to_opcode(raw_inst)?;
         let format = decode_helper::opcode_to_format(opcode);
         let attributes = Attributes::default();
         let function = Function::default();
         let controls = Controls::default();
+
         let mut inst =
             Self { raw_inst, opcode, format, function, attributes, controls };
-        decode_helper::parse(&mut inst);
 
-        inst
+        decode_helper::parse(&mut inst)?;
+        Ok(inst)
     }
 }
 
 impl Default for Instruction {
     fn default() -> Self {
-        Self::new(NOP)
+        Self::new(NOP).unwrap()
     }
 }
 

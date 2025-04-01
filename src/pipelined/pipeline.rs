@@ -1,4 +1,5 @@
 //! Pipeline state
+use crate::error::SimulatorResult;
 use crate::instruction::Instruction;
 
 /// Pipeline state = 4 pipeline registers
@@ -16,17 +17,17 @@ impl PipelineState {
     /// We care about those instructions where the
     /// write-back result is determined AFTER the MEM stage.
     /// Thus we'll include LUI, AUIPC, JAL, JALR additionally.
-    pub fn load_hazard(&self) -> bool {
+    pub fn load_hazard(&self) -> SimulatorResult<bool> {
         use crate::instruction::Opcode::*;
-        match self.id_ex.inst.opcode {
+        Ok(match self.id_ex.inst.opcode {
             Lui | AuiPc | Jal | Jalr | Load => {
-                let if_id_inst = Instruction::new(self.if_id.raw_inst);
+                let if_id_inst = Instruction::new(self.if_id.raw_inst)?;
                 if_id_inst.attributes.rs1 == self.id_ex.inst.attributes.rd
                     || if_id_inst.attributes.rs2
                         == self.id_ex.inst.attributes.rd
             }
             _ => false,
-        }
+        })
     }
 
     /// Operand 1 can be forwarded from previous execution result

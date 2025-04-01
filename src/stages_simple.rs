@@ -3,6 +3,8 @@
 use crate::alu::alu;
 use crate::alu::ALUSrc;
 use crate::cpu::CPUState;
+use crate::error::SimulatorError;
+use crate::error::SimulatorResult;
 use crate::instruction::Instruction;
 use crate::memory::StorageInterface;
 use crate::system_call::syscall;
@@ -12,18 +14,24 @@ pub fn instruction_fetch(
     pc: u32,
     cpu: &mut CPUState,
     mem: &mut impl StorageInterface,
-) -> u32 {
+) -> SimulatorResult<u32> {
     let mut stall_count = Some(0);
     let mut stall_count_worst = Some(0);
-    let raw_inst = mem.get(pc, 4, &mut stall_count, &mut stall_count_worst);
+
+    let raw_inst = mem.get(pc, 4, &mut stall_count, &mut stall_count_worst)?;
+
     cpu.history.mem_stall_count += stall_count.unwrap();
     cpu.history.mem_stall_worst_count += stall_count_worst.unwrap();
-    assert!(raw_inst != 0, "Instruction fetch failed");
-    raw_inst
+
+    if raw_inst == 0 {
+        return Err(SimulatorError::InvalidInstructionError(0, pc));
+    }
+
+    Ok(raw_inst)
 }
 
 /// ID: Instruction decode
-pub fn instruction_decode(raw_inst: u32) -> Instruction {
+pub fn instruction_decode(raw_inst: u32) -> SimulatorResult<Instruction> {
     Instruction::new(raw_inst)
 }
 
@@ -41,7 +49,7 @@ pub fn execute(
     inst: &Instruction,
     op1: i32,
     op2: i32,
-) -> i32 {
+) -> SimulatorResult<i32> {
     // Increment instruction count
     cpu.update_inst_count(1);
 
@@ -62,7 +70,7 @@ pub fn execute(
             // Print the operands
             eprintln!("[VERBOSE] op1: {:#010x}; op2: {:#010x}", op1, op2);
         }
-        alu(inst, op1, op2)
+        Ok(alu(inst, op1, op2))
     }
 }
 
@@ -74,7 +82,7 @@ pub fn memory_access(
     mem: &mut impl StorageInterface,
     exec_result: i32,
     op2: i32,
-) -> u32 {
+) -> SimulatorResult<u32> {
     let mut mem_result: u32 = 0;
 
     let address = exec_result as u32;
@@ -89,7 +97,7 @@ pub fn memory_access(
             mem_step,
             &mut stall_count,
             &mut stall_count_worst,
-        );
+        )?;
     } else if inst.controls.mem_write {
         mem.set(
             address,
@@ -97,7 +105,7 @@ pub fn memory_access(
             op2 as u32,
             &mut stall_count,
             &mut stall_count_worst,
-        );
+        )?;
     }
 
     cpu.history.mem_stall_count += stall_count.unwrap();
@@ -106,7 +114,7 @@ pub fn memory_access(
     match inst.controls.mem_read {
         true => {
             // Write the memory result
-            mem_result
+            Ok(mem_result)
         }
         false => {
             // Write the execution result
@@ -114,10 +122,10 @@ pub fn memory_access(
             use crate::instruction::Function;
             let imm = inst.attributes.imm.unwrap_or(0) as i32;
             match inst.function {
-                Function::LUI => imm as u32,
-                Function::AUIPC => ((pc as i32) + imm) as u32,
-                Function::JAL | Function::JALR => pc + 4,
-                _ => exec_result as u32,
+                Function::LUI => Ok(imm as u32),
+                Function::AUIPC => Ok(((pc as i32) + imm) as u32),
+                Function::JAL | Function::JALR => Ok(pc + 4),
+                _ => Ok(exec_result as u32),
             }
         }
     }
@@ -129,7 +137,7 @@ pub fn write_back(
     inst: &Instruction,
     cpu: &mut CPUState,
     wb_result: u32,
-) {
+) -> SimulatorResult<()> {
     // If you need to write
     if inst.controls.reg_write {
         let rd = inst.attributes.rd.unwrap() as usize;
@@ -138,4 +146,5 @@ pub fn write_back(
             cpu.gpr[rd].write(wb_result);
         }
     }
+    Ok(())
 }

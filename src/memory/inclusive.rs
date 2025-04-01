@@ -8,6 +8,8 @@ use super::StorageInterface;
 use super::WriteHitPolicy;
 use super::WriteMissPolicy;
 use super::MMU;
+use crate::error::MemoryError;
+use crate::error::SimulatorResult;
 
 /// Inclusive cache implementation.
 /// We maintain n (k >= 0) caches and 1 MMU
@@ -105,7 +107,7 @@ impl InclusiveCache {
         k: usize,
         address: u32,
         stall_count: &mut Option<i32>,
-    ) -> usize {
+    ) -> SimulatorResult<usize> {
         assert!(k < self.n());
 
         // If we enable victim cache and we're at k = 0,
@@ -138,7 +140,7 @@ impl InclusiveCache {
                 self.caches[0].fix_block(index, victim_address);
                 self.victim_cache.fix_block(hit_index, replaced_address);
 
-                return index_to_replace;
+                return Ok(index_to_replace);
             } else {
                 // Record the miss
                 self.victim_cache.record_miss();
@@ -150,7 +152,7 @@ impl InclusiveCache {
         let block = self.caches[k].make_block(address);
 
         // Access the next level
-        self.access_inner(k + 1, address, AccessType::Write, stall_count);
+        self.access_inner(k + 1, address, AccessType::Write, stall_count)?;
 
         // Replace the block with the least recent reference
         let index_to_replace = self.caches[k].get_index_to_replace(block.index);
@@ -177,13 +179,13 @@ impl InclusiveCache {
         if self.write_hit_policy == WriteHitPolicy::WriteBack
             && replaced_block.dirty
         {
-            self.write_to_next_level(k, &replaced_block);
+            self.write_to_next_level(k, &replaced_block)?;
         }
 
-        index_to_replace
+        Ok(index_to_replace)
     }
 
-    pub fn verify_inclusiveness(&mut self) {
+    pub fn verify_inclusiveness(&mut self) -> SimulatorResult<()> {
         if !self.use_victim_cache {
             for k in 0..self.n() {
                 for i in 0..self.caches[k].policy.block_num {
@@ -194,7 +196,13 @@ impl InclusiveCache {
                         self.caches[k].get_address(&self.caches[k].blocks[i]);
 
                     for k2 in k + 1..self.n() {
-                        assert!(self.caches[k2].lookup(address).is_some());
+                        if self.caches[k2].lookup(address).is_none() {
+                            return Err(MemoryError::CacheInconsistency(
+                            k2,
+                            format!("Cache level {} does not contain address {:#010x} found in level {}", 
+                                    k2, address, k)
+                        ).into());
+                        }
                     }
                 }
             }
@@ -208,11 +216,19 @@ impl InclusiveCache {
                         self.caches[k].get_address(&self.caches[k].blocks[i]);
 
                     for k2 in k + 1..self.n() {
-                        assert!(self.caches[k2].lookup(address).is_some());
+                        if self.caches[k2].lookup(address).is_none() {
+                            return Err(MemoryError::CacheInconsistency(
+                            k2,
+                            format!("Cache level {} does not contain address {:#010x} found in level {}", 
+                                    k2, address, k)
+                        ).into());
+                        }
                     }
                 }
             }
         }
+
+        Ok(())
     }
 }
 
@@ -268,7 +284,7 @@ impl StorageInterface for InclusiveCache {
         address: u32,
         access_type: AccessType,
         _: &mut Option<i32>,
-    ) {
+    ) -> SimulatorResult<()> {
         // If it's a write and we use write-through,
         // we must write to the next level immediately
         if access_type == AccessType::Write
@@ -279,8 +295,9 @@ impl StorageInterface for InclusiveCache {
             // In addition, we've already done the write
             // instruction and there is no need to penalize further;
             // that is, we won't pass the stall counter to this write
-            self.access_inner(k + 1, address, AccessType::Write, &mut None);
-        }
+            self.access_inner(k + 1, address, AccessType::Write, &mut None)?;
+        };
+        Ok(())
     }
 
     fn handle_miss(
@@ -289,20 +306,27 @@ impl StorageInterface for InclusiveCache {
         address: u32,
         access_type: AccessType,
         stall_count: &mut Option<i32>,
-    ) -> Option<usize> {
+    ) -> SimulatorResult<Option<usize>> {
         // Fetch from some lower-level cache iff
         // 1. It's a read, or
         // 2. It's a write and we use write-allocate
         // target_index = Some(
         //     self.fetch_from_next_level(k, address, stall_count)
         // );
-        if access_type == AccessType::Read
-            || self.write_miss_policy == WriteMissPolicy::WriteAllocate
-        {
-            Some(self.fetch_from_next_level(k, address, stall_count))
-        } else {
-            self.access_inner(k + 1, address, AccessType::Write, stall_count);
-            None
-        }
+        Ok(
+            if access_type == AccessType::Read
+                || self.write_miss_policy == WriteMissPolicy::WriteAllocate
+            {
+                Some(self.fetch_from_next_level(k, address, stall_count)?)
+            } else {
+                self.access_inner(
+                    k + 1,
+                    address,
+                    AccessType::Write,
+                    stall_count,
+                )?;
+                None
+            },
+        )
     }
 }

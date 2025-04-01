@@ -1,15 +1,26 @@
 use std::env;
-use std::error::Error;
 
 use sim_lib::cpu::CPUPolicy;
 use sim_lib::cpu::Implementation;
+use sim_lib::error::SimulatorError;
+use sim_lib::error::SimulatorResult;
 use sim_lib::pipelined::branch_predictor::PredictorHeuristic;
 use sim_lib::run_wrapper;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("Error: {}", e);
+    }
+}
+
+fn run() -> SimulatorResult<()> {
     let mut args = env::args().skip(1);
-    let elf_file =
-        args.next().ok_or("You should specify exactly one ELF file")?;
+
+    let elf_file = args.next().ok_or_else(|| {
+        SimulatorError::ConfigError(
+            "You should specify exactly one ELF file".to_string(),
+        )
+    })?;
 
     let mut policy = CPUPolicy::default();
 
@@ -18,34 +29,49 @@ fn main() -> Result<(), Box<dyn Error>> {
             "-v" => policy.verbose = true,
             "-h" => policy.history = true,
             "-i" => {
-                let impl_arg = args
-                    .next()
-                    .ok_or("You should specify an implementation after -i")?;
+                let impl_arg = args.next().ok_or_else(|| {
+                    SimulatorError::ConfigError(
+                        "You should specify an implementation after -i"
+                            .to_string(),
+                    )
+                })?;
+
                 policy.implementation = match impl_arg.as_str() {
                     "S" => Implementation::SingleCycle,
                     "P" => Implementation::Pipelined,
                     _ => {
-                        return Err(
-                            "Invalid implementation specified after -i".into()
-                        )
+                        return Err(SimulatorError::ConfigError(
+                            "Invalid implementation specified after -i"
+                                .to_string(),
+                        ));
                     }
                 };
             }
             "-p" => {
-                let heuristic_arg = args
-                    .next()
-                    .ok_or("You should specify a BP heuristic after -p")?;
+                let heuristic_arg = args.next().ok_or_else(|| {
+                    SimulatorError::ConfigError(
+                        "You should specify a BP heuristic after -p"
+                            .to_string(),
+                    )
+                })?;
+
                 policy.heuristic = match heuristic_arg.as_str() {
                     "BP" => PredictorHeuristic::BufferedPrediction,
                     "ANT" => PredictorHeuristic::AlwaysNotTaken,
                     _ => {
-                        return Err(
-                            "Invalid BP heuristic specified after -p".into()
-                        )
+                        return Err(SimulatorError::ConfigError(
+                            "Invalid BP heuristic specified after -p"
+                                .to_string(),
+                        ));
                     }
                 };
             }
-            _ => return Err(format!("Unknown parameter: {}", arg).into()),
+            _ => {
+                return Err(SimulatorError::ConfigError(format!(
+                    "Unknown parameter: {}",
+                    arg
+                )));
+            }
         }
     }
 

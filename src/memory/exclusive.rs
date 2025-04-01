@@ -5,6 +5,8 @@ use super::cache::CachePolicy;
 use super::mmu::MMU;
 use super::AccessType;
 use super::StorageInterface;
+use crate::error::MemoryError;
+use crate::error::SimulatorResult;
 
 /// Exclusive cache implementation.
 /// We maintain n (k >= 0) caches and 1 MMU
@@ -55,7 +57,7 @@ impl ExclusiveCache {
         }
     }
 
-    pub fn verify_exclusiveness(&mut self) {
+    pub fn verify_exclusiveness(&mut self) -> SimulatorResult<()> {
         for k in 0..self.n() {
             for i in 0..self.caches[k].policy.block_num {
                 if !self.caches[k].blocks[i].valid {
@@ -65,10 +67,18 @@ impl ExclusiveCache {
                     self.caches[k].get_address(&self.caches[k].blocks[i]);
 
                 for k2 in k + 1..self.n() {
-                    assert_eq!(self.lookup(k2, address), None);
+                    if self.lookup(k2, address).is_some() {
+                        return Err(MemoryError::CacheInconsistency(
+                            k2,
+                            format!("Cache level {} contains address {:#010x} that also exists in level {}, violating exclusivity", 
+                                    k2, address, k)
+                        ).into());
+                    }
                 }
             }
         }
+
+        Ok(())
     }
 }
 
@@ -104,7 +114,7 @@ impl StorageInterface for ExclusiveCache {
         address: u32,
         access_type: AccessType,
         stall_count: &mut Option<i32>,
-    ) -> Option<usize> {
+    ) -> SimulatorResult<Option<usize>> {
         assert!(k < self.n());
 
         // Make a new block and replace some
@@ -128,18 +138,18 @@ impl StorageInterface for ExclusiveCache {
         // we clear up the block in the next level,
         // and write the replaced block (if valid) to the next level
         if let Some(next_index) =
-            self.access_inner(k + 1, address, access_type, stall_count)
+            self.access_inner(k + 1, address, access_type, stall_count)?
         {
             // Clear up the block in the next level
             self.caches[k + 1].reset_block(next_index);
 
             // Write a valid block to the next level
             if replaced_block.valid {
-                self.write_to_next_level(k, &replaced_block);
+                self.write_to_next_level(k, &replaced_block)?;
             }
         }
 
-        Some(index_to_replace)
+        Ok(Some(index_to_replace))
     }
 }
 
@@ -148,7 +158,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_exclusive_cache() {
+    fn test_exclusive_cache() -> SimulatorResult<()> {
         let address = 0x12345679;
         let value = 1234;
 
@@ -156,11 +166,13 @@ mod tests {
         cache.mmu().allocate_page(address);
 
         let mut stall_count = Some(0);
-        cache.set(address, 4, value, &mut stall_count, &mut None);
+        cache.set(address, 4, value, &mut stall_count, &mut None)?;
         // Cold miss
         assert!(stall_count == Some(100));
-        cache.set(address, 4, value, &mut stall_count, &mut None);
+        cache.set(address, 4, value, &mut stall_count, &mut None)?;
         // Hit at L1
         assert!(stall_count == Some(1));
+
+        Ok(())
     }
 }
