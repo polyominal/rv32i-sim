@@ -13,3 +13,5 @@ pub mod pipelined;
 pub mod single_cycle;
 
 pub mod error;
+
+pub mod flags;

@@ -14,48 +14,31 @@ This simulator is implemented with Rust.
 To build the project, run
 
 ```bash
-cargo b --release
+cargo build --release
 ```
 
 To run the simulator:
 
 ```bash
-cargo r --release [PATH_TO_ELF_FILE] [OPTION...]
+cargo run --release -- [PATH_TO_ELF_FILE] [OPTION...]
 ```
-
-Available options are:
-
-- `-h`: Enables history module, which
-prints the total number of cycles and instructions after the simulation
-- `-i [IMPLEMENTATION]`: Specifies the
-implementation of the simulator. `[IMPLEMENTATION]` is one of the following:
-  - `P`: Pipelined implementation; this is
-    the default implementation
-  - `S`: Naive single-cycle implementation
-- `-p [HEURISTIC]`: Specifies the branch prediction heuristic.
-`[HEURISTIC]` is one of the following:
-  - `BP`: Buffered prediction; this is the default heuristic
-  - `ANT`: Always not taken; essentially not predicting at all
-- `-v`: Enables verbose mode, which prints
-a lot of stuff during the simulation. This is
-largely used for debugging purposes
 
 For example, you can do
 
 ```bash
-cargo r --release test-riscv/ackermann.riscv -h
+cargo run --release -- test-riscv/ackermann.riscv --history
 ```
 
 Alternatively, you can do a single-cycle simulation:
 
 ```bash
-cargo r --release test-riscv/ackermann.riscv -h -i S
+cargo r --release -- test-riscv/ackermann.riscv --history -i S
 ```
 
 ## Implementation
 
 To generate a documentation that provides an
-(somewhat) organized overview, execute ``cargo d --open``.
+(somewhat) organized overview, execute ``cargo doc``.
 
 This section is structured as follows:
 
