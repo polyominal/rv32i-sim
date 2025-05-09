@@ -14,21 +14,8 @@ path = "src/lib.rs"
 name = "sim"
 path = "src/sim.rs"
 
-[[bin]]
-name = "single-eval"
-path = "src/eval/single.rs"
-
-[[bin]]
-name = "multi-eval"
-path = "src/eval/multi.rs"
-
-[[bin]]
-name = "sim-eval"
-path = "src/eval/cpi.rs"
-
 [dependencies]
-object = "0.35.0"
-text_io = "0.1.12"
-plotters = "0.3.3"
-csv = "1.3.0"
+object = "0.36.7"
+text_io = "0.1.13"
 thiserror = "2.0.12"
+xflags = "0.3.2"
